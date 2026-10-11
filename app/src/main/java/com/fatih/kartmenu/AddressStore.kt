@@ -41,6 +41,11 @@ class AddressStore(context: Context) {
 
     fun add(address: Address) = synchronized(LOCK) { save(getAll() + address) }
 
+    /** Aynı id'li adresi yenisiyle değiştirir (yerinde günceller). */
+    fun update(address: Address) = synchronized(LOCK) {
+        save(getAll().map { if (it.id == address.id) address else it })
+    }
+
     fun delete(id: String) = synchronized(LOCK) { save(getAll().filterNot { it.id == id }) }
 
     private fun save(addresses: List<Address>) {

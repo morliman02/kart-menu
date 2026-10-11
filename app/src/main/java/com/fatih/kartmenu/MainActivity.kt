@@ -47,21 +47,22 @@ class MainActivity : Activity() {
         val list = findViewById<ListView>(R.id.cardList)
         list.adapter = adapter
         list.emptyView = findViewById(R.id.emptyView)
+        // Karta dokun → düzenle/sil ekranı. (Uzun basınca da aynı ekran.)
+        list.setOnItemClickListener { _, _, position, _ -> showCardDialog(adapter.getItem(position)) }
         list.setOnItemLongClickListener { _, _, position, _ ->
-            confirmDelete(adapter.getItem(position), position)
-            true
+            showCardDialog(adapter.getItem(position)); true
         }
 
         val addrList = findViewById<ListView>(R.id.addressList)
         addrList.adapter = addressAdapter
         addrList.emptyView = findViewById(R.id.emptyAddressView)
+        addrList.setOnItemClickListener { _, _, position, _ -> showAddressDialog(addressAdapter.getItem(position)) }
         addrList.setOnItemLongClickListener { _, _, position, _ ->
-            confirmDeleteAddress(addressAdapter.getItem(position), position)
-            true
+            showAddressDialog(addressAdapter.getItem(position)); true
         }
 
-        findViewById<Button>(R.id.addButton).setOnClickListener { showAddDialog() }
-        findViewById<Button>(R.id.addAddressButton).setOnClickListener { showAddAddressDialog() }
+        findViewById<Button>(R.id.addButton).setOnClickListener { showCardDialog(null) }
+        findViewById<Button>(R.id.addAddressButton).setOnClickListener { showAddressDialog(null) }
         findViewById<Button>(R.id.signupButton).setOnClickListener { showSignupDialog() }
         findViewById<Button>(R.id.overlayButton).setOnClickListener {
             startActivity(
@@ -115,18 +116,26 @@ class MainActivity : Activity() {
         adapter.notifyDataSetChanged()
     }
 
-    private fun showAddDialog() {
+    /** existing null ise yeni kart ekler; dolu ise o kartı düzenler (Kaydet) veya siler (Sil). */
+    private fun showCardDialog(existing: Card?) {
         val view = layoutInflater.inflate(R.layout.dialog_add_card, null)
         val numberInput = view.findViewById<EditText>(R.id.numberInput)
         val expiryInput = view.findViewById<EditText>(R.id.expiryInput)
         val holderInput = view.findViewById<EditText>(R.id.holderInput)
 
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(R.string.add_card)
+        if (existing != null) {
+            numberInput.setText(existing.number)
+            expiryInput.setText(existing.expiry)
+            holderInput.setText(existing.holder)
+        }
+
+        val builder = AlertDialog.Builder(this)
+            .setTitle(if (existing == null) R.string.add_card else R.string.edit_card)
             .setView(view)
             .setPositiveButton(R.string.save, null)
             .setNegativeButton(R.string.cancel, null)
-            .create()
+        if (existing != null) builder.setNeutralButton(R.string.delete, null)
+        val dialog = builder.create()
         dialog.window?.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
 
         dialog.setOnShowListener {
@@ -149,25 +158,23 @@ class MainActivity : Activity() {
                     ok = false
                 }
                 if (ok && expiry != null) {
-                    store.add(Card(UUID.randomUUID().toString(), number, expiry, holder))
+                    if (existing == null) {
+                        store.add(Card(UUID.randomUUID().toString(), number, expiry, holder))
+                    } else {
+                        store.update(Card(existing.id, number, expiry, holder))
+                    }
                     refreshCards()
                     dialog.dismiss()
                 }
             }
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL)?.setOnClickListener {
+                existing?.let { store.delete(it.id) }
+                refreshCards()
+                Toast.makeText(this, "Kart silindi", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            }
         }
         dialog.show()
-    }
-
-    private fun confirmDelete(card: Card, position: Int) {
-        AlertDialog.Builder(this)
-            .setTitle("Kart ${position + 1} silinsin mi?")
-            .setMessage("${card.holder}\n${card.masked}")
-            .setPositiveButton(R.string.delete) { _, _ ->
-                store.delete(card.id)
-                refreshCards()
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
     }
 
     // ---------------------------------------------------------------- adresler
@@ -177,7 +184,8 @@ class MainActivity : Activity() {
         addressAdapter.notifyDataSetChanged()
     }
 
-    private fun showAddAddressDialog() {
+    /** existing null ise yeni adres ekler; dolu ise o adresi düzenler (Kaydet) veya siler (Sil). */
+    private fun showAddressDialog(existing: Address?) {
         val view = layoutInflater.inflate(R.layout.dialog_add_address, null)
         val fullName = view.findViewById<EditText>(R.id.fullNameInput)
         val phone = view.findViewById<EditText>(R.id.phoneInput)
@@ -185,12 +193,21 @@ class MainActivity : Activity() {
         val line2 = view.findViewById<EditText>(R.id.line2Input)
         val line3 = view.findViewById<EditText>(R.id.line3Input)
 
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(R.string.add_address)
+        if (existing != null) {
+            fullName.setText(existing.fullName)
+            phone.setText(existing.phones.joinToString("\n"))
+            line1.setText(existing.line1)
+            line2.setText(existing.line2)
+            line3.setText(existing.line3)
+        }
+
+        val builder = AlertDialog.Builder(this)
+            .setTitle(if (existing == null) R.string.add_address else R.string.edit_address)
             .setView(view)
             .setPositiveButton(R.string.save, null)
             .setNegativeButton(R.string.cancel, null)
-            .create()
+        if (existing != null) builder.setNeutralButton(R.string.delete, null)
+        val dialog = builder.create()
         dialog.window?.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
 
         dialog.setOnShowListener {
@@ -202,17 +219,22 @@ class MainActivity : Activity() {
                 }
                 // Birden fazla telefon: her satır (veya virgül) bir numara, en fazla 5 tanesi.
                 val phones = splitLines(phone.text.toString()).take(5)
-                addressStore.add(
-                    Address(
-                        id = UUID.randomUUID().toString(),
-                        fullName = fullName.text.toString().trim(),
-                        phones = phones,
-                        line1 = addressLine1,
-                        line2 = line2.text.toString().trim(),
-                        line3 = line3.text.toString().trim(),
-                    )
+                val a = Address(
+                    id = existing?.id ?: UUID.randomUUID().toString(),
+                    fullName = fullName.text.toString().trim(),
+                    phones = phones,
+                    line1 = addressLine1,
+                    line2 = line2.text.toString().trim(),
+                    line3 = line3.text.toString().trim(),
                 )
+                if (existing == null) addressStore.add(a) else addressStore.update(a)
                 refreshAddresses()
+                dialog.dismiss()
+            }
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL)?.setOnClickListener {
+                existing?.let { addressStore.delete(it.id) }
+                refreshAddresses()
+                Toast.makeText(this, "Adres silindi", Toast.LENGTH_SHORT).show()
                 dialog.dismiss()
             }
         }
@@ -259,17 +281,6 @@ class MainActivity : Activity() {
         dialog.show()
     }
 
-    private fun confirmDeleteAddress(address: Address, position: Int) {
-        AlertDialog.Builder(this)
-            .setTitle("Adres ${position + 1} silinsin mi?")
-            .setMessage(address.summary)
-            .setPositiveButton(R.string.delete) { _, _ ->
-                addressStore.delete(address.id)
-                refreshAddresses()
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
 
     private inner class AddressAdapter : BaseAdapter() {
         var addresses: List<Address> = emptyList()

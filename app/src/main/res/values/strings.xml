@@ -11,8 +11,10 @@
     <string name="not_granted">Kapalı</string>
     <string name="my_cards">Kartlarım</string>
     <string name="add_card">Kart ekle</string>
+    <string name="edit_card">Kartı düzenle</string>
+    <string name="edit_address">Adresi düzenle</string>
     <string name="no_cards">Henüz kart eklemediniz.</string>
-    <string name="usage_hint">Kullanım: herhangi bir ekrandayken (ör. Amazon ödeme sayfası) ekranın sol kenarındaki ince çubuktan parmağınızı sağa kaydırın. Açılan menüde bir karta dokunursanız kart numarası seçili alana yazılır, alan yoksa panoya kopyalanır (60 saniye sonra silinir). Kartı silmek için listede uzun basın.</string>
+    <string name="usage_hint">Kullanım: herhangi bir ekrandayken (ör. Amazon ödeme sayfası) ekranın sol kenarındaki ince çubuktan parmağınızı sağa kaydırın. Açılan menüde bir karta dokunursanız kart numarası seçili alana yazılır, alan yoksa panoya kopyalanır (60 saniye sonra silinir). Kayıtlı bir kartı/adresi düzenlemek veya silmek için listede üzerine dokunun.</string>
     <string name="my_addresses">Adreslerim</string>
     <string name="add_address">Adres ekle</string>
     <string name="no_addresses">Henüz adres eklemediniz.</string>

@@ -37,6 +37,11 @@ class CardStore(context: Context) {
 
     fun add(card: Card) = synchronized(LOCK) { save(getAll() + card) }
 
+    /** Aynı id'li kartı yenisiyle değiştirir (yerinde günceller). */
+    fun update(card: Card) = synchronized(LOCK) {
+        save(getAll().map { if (it.id == card.id) card else it })
+    }
+
     fun delete(id: String) = synchronized(LOCK) { save(getAll().filterNot { it.id == id }) }
 
     private fun save(cards: List<Card>) {
