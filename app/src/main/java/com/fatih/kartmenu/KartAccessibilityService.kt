@@ -761,9 +761,13 @@ class KartAccessibilityService : AccessibilityService() {
         )
 
         // Adres formu etiketleri (Amazon.com.tr ve genel formlar; TR + EN).
+        // Not: Amazon'un isim kutusunun görünür etiketi ("Tam ad") erişilebilirlik ağacında
+        // kutuya bağlı olmayabiliyor; o yüzden boşluksuz görünüm-kimliği biçimleri de
+        // ("fullname", "recipientname") eklendi ki kutu isimle tanınabilsin.
         private val FULLNAME_KEYS = arrayOf(
             "tam ad", "ad ve soyad", "ad soyad", "adiniz ve soyadiniz", "alici", "isim soyisim",
-            "full name", "first and last name", "recipient", "contact name", "ad-soyad"
+            "full name", "fullname", "first and last name", "recipient", "recipientname",
+            "contact name", "contactname", "ad-soyad"
         )
         private val PHONE_KEYS = arrayOf(
             "telefon", "cep telefon", "cep no", "gsm", "phone", "mobile", "tel no", "tel "

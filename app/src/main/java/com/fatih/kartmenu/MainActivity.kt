@@ -31,6 +31,12 @@ class MainActivity : Activity() {
         window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         setContentView(R.layout.activity_main)
 
+        // Hangi sürümün kurulu olduğu ekranda açıkça görünsün (güncelleme oturdu mu kontrolü).
+        runCatching {
+            val info = packageManager.getPackageInfo(packageName, 0)
+            findViewById<TextView>(R.id.versionLabel).text = "Sürüm ${info.versionName}"
+        }
+
         store = CardStore(this)
         adapter = CardAdapter()
         addressStore = AddressStore(this)
