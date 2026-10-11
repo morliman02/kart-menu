@@ -388,13 +388,18 @@ class KartAccessibilityService : AccessibilityService() {
         val line2T = address.line2.ifBlank { null }?.let { FillTarget(LINE2_KEYS, it) }
         val line3T = address.line3.ifBlank { null }?.let { FillTarget(LINE3_KEYS, it) }
         val line1T = address.line1.ifBlank { null }?.let { FillTarget(LINE1_KEYS, it) }
+        // Şehir/İlçe/Mahalle: Amazon'da yazınca altında öneri çıkıp dokununca seçiliyor
+        // (ve posta kodu otomatik geliyor). Bunları "otomatik tamamlamalı" işaretliyoruz.
+        val cityT = address.city.ifBlank { null }?.let { FillTarget(CITY_KEYS, it) }
+        val districtT = address.district.ifBlank { null }?.let { FillTarget(DISTRICT_KEYS, it) }
+        val mahalleT = address.mahalle.ifBlank { null }?.let { FillTarget(MAHALLE_KEYS, it) }
         val targets = listOfNotNull(
             line2T,
             line3T,
             line1T,
-            address.mahalle.ifBlank { null }?.let { FillTarget(MAHALLE_KEYS, it) },
-            address.district.ifBlank { null }?.let { FillTarget(DISTRICT_KEYS, it) },
-            address.city.ifBlank { null }?.let { FillTarget(CITY_KEYS, it) },
+            mahalleT,
+            districtT,
+            cityT,
             address.fullName.ifBlank { null }?.let { FillTarget(FULLNAME_KEYS, it) },
             address.phone.ifBlank { null }?.let { FillTarget(PHONE_KEYS, it) },
             address.postalCode.ifBlank { null }?.let { FillTarget(POSTAL_KEYS, it) },
@@ -425,6 +430,71 @@ class KartAccessibilityService : AccessibilityService() {
         }
 
         report(filled, fallbackValue = address.line1, fallbackLabel = "Adres")
+
+        // Şehir/İlçe/Mahalle için açılan öneriye otomatik dokunmayı dene (en iyi çaba).
+        // Böylece seçim tamamlanır ve posta kodu Amazon tarafından otomatik gelir.
+        val autoCompleteItems = listOfNotNull(cityT, districtT, mahalleT).mapNotNull { t ->
+            val idx = targets.indexOf(t)
+            fields.firstOrNull { it.filled && it.matched == idx }?.let { it.node to t.value }
+        }
+        if (autoCompleteItems.isNotEmpty()) {
+            handler.postDelayed({ selectSuggestions(autoCompleteItems, 0) }, 500)
+        }
+    }
+
+    /**
+     * Otomatik tamamlamalı alanları sırayla işler: alanı odakla + metni yeniden yaz
+     * (öneri listesi çıksın), kısa bir bekleme sonrası eşleşen öneriye dokun, sonra sıradakine geç.
+     */
+    private fun selectSuggestions(items: List<Pair<AccessibilityNodeInfo, String>>, index: Int) {
+        if (index >= items.size) return
+        val (node, value) = items[index]
+        runCatching {
+            node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+            setText(node, value)
+        }
+        handler.postDelayed({
+            val root = rootInActiveWindow ?: firstAppRoot()
+            val suggestion = root?.let { findSuggestion(it, normalize(value), node) }
+            suggestion?.let { clickable ->
+                runCatching { clickable.performAction(AccessibilityNodeInfo.ACTION_CLICK) }
+            }
+            handler.postDelayed({ selectSuggestions(items, index + 1) }, 600)
+        }, 650)
+    }
+
+    /**
+     * Girilen değeri içeren, düzenlenebilir OLMAYAN, tıklanabilir öneri satırını bulur.
+     * Giriş kutusunun kendisi hariç tutulur. Tıklanabilir en yakın düğümü döndürür.
+     */
+    private fun findSuggestion(
+        node: AccessibilityNodeInfo?,
+        normalizedValue: String,
+        inputNode: AccessibilityNodeInfo,
+        depth: Int = 0,
+    ): AccessibilityNodeInfo? {
+        if (node == null || depth > 60) return null
+        val text = node.text?.toString()
+        if (!node.isEditable && node != inputNode && !text.isNullOrBlank() &&
+            normalize(text).contains(normalizedValue)
+        ) {
+            clickableAncestor(node)?.let { return it }
+        }
+        for (i in 0 until node.childCount) {
+            findSuggestion(node.getChild(i), normalizedValue, inputNode, depth + 1)?.let { return it }
+        }
+        return null
+    }
+
+    private fun clickableAncestor(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
+        var current = node
+        var hops = 0
+        while (current != null && hops < 6) {
+            if (current.isClickable) return current
+            current = current.parent
+            hops++
+        }
+        return null
     }
 
     private fun collectFields(root: AccessibilityNodeInfo): List<Field> {
