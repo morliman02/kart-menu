@@ -52,5 +52,29 @@
             android:hint="@string/addr_line3"
             android:importantForAutofill="no"
             android:inputType="textPostalAddress|textCapWords" />
+
+        <EditText
+            android:id="@+id/cityInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/addr_city"
+            android:importantForAutofill="no"
+            android:inputType="textCapWords" />
+
+        <EditText
+            android:id="@+id/districtInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/addr_district"
+            android:importantForAutofill="no"
+            android:inputType="textCapWords" />
+
+        <EditText
+            android:id="@+id/mahalleInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/addr_mahalle"
+            android:importantForAutofill="no"
+            android:inputType="textCapWords" />
     </LinearLayout>
 </ScrollView>

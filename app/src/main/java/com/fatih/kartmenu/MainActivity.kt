@@ -192,6 +192,9 @@ class MainActivity : Activity() {
         val line1 = view.findViewById<EditText>(R.id.line1Input)
         val line2 = view.findViewById<EditText>(R.id.line2Input)
         val line3 = view.findViewById<EditText>(R.id.line3Input)
+        val city = view.findViewById<EditText>(R.id.cityInput)
+        val district = view.findViewById<EditText>(R.id.districtInput)
+        val mahalle = view.findViewById<EditText>(R.id.mahalleInput)
 
         if (existing != null) {
             fullName.setText(existing.fullName)
@@ -199,6 +202,9 @@ class MainActivity : Activity() {
             line1.setText(existing.line1)
             line2.setText(existing.line2)
             line3.setText(existing.line3)
+            city.setText(existing.city)
+            district.setText(existing.district)
+            mahalle.setText(existing.mahalle)
         }
 
         val builder = AlertDialog.Builder(this)
@@ -226,6 +232,9 @@ class MainActivity : Activity() {
                     line1 = addressLine1,
                     line2 = line2.text.toString().trim(),
                     line3 = line3.text.toString().trim(),
+                    city = city.text.toString().trim(),
+                    district = district.text.toString().trim(),
+                    mahalle = mahalle.text.toString().trim(),
                 )
                 if (existing == null) addressStore.add(a) else addressStore.update(a)
                 refreshAddresses()

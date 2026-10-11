@@ -207,6 +207,25 @@ class KartAccessibilityService : AccessibilityService() {
                 val row = menuRow(dark) { autoFill(address) }
                 row.addView(rowTitle("Adres ${index + 1}", fg))
                 row.addView(rowSub(address.summary, sub))
+                // Şehir / İlçe / Mahalle: kartlardaki gibi mavi kutu. Kullanıcı Amazon'daki
+                // kutuya dokunur, buradaki kutuya basar, değer o alana yazılır; açılan
+                // öneri listesinden kendisi seçer (otomatik seçim denenmez).
+                if (address.city.isNotBlank() || address.district.isNotBlank() || address.mahalle.isNotBlank()) {
+                    val chips = LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        setPadding(0, dp(6), 0, 0)
+                    }
+                    if (address.city.isNotBlank()) {
+                        chips.addView(chip("Şehir", brand) { deliver(address.city, "Şehir") })
+                    }
+                    if (address.district.isNotBlank()) {
+                        chips.addView(chip("İlçe", brand) { deliver(address.district, "İlçe") })
+                    }
+                    if (address.mahalle.isNotBlank()) {
+                        chips.addView(chip("Mah.", brand) { deliver(address.mahalle, "Mahalle / Köy") })
+                    }
+                    row.addView(chips)
+                }
                 list.addView(row, rowParams())
             }
         }

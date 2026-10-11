@@ -31,6 +31,10 @@ class AddressStore(context: Context) {
                     line1 = o.optString("line1"),
                     line2 = o.optString("line2"),
                     line3 = o.optString("line3"),
+                    // Eski kayıtlarda bu alanlar yoktu; optString boş döner (geriye uyumlu).
+                    city = o.optString("city"),
+                    district = o.optString("district"),
+                    mahalle = o.optString("mahalle"),
                 )
             }
         } catch (e: Exception) {
@@ -59,6 +63,9 @@ class AddressStore(context: Context) {
                     .put("line1", a.line1)
                     .put("line2", a.line2)
                     .put("line3", a.line3)
+                    .put("city", a.city)
+                    .put("district", a.district)
+                    .put("mahalle", a.mahalle)
             )
         }
         prefs.edit().putString(KEY_DATA, Crypto.encrypt(array.toString())).apply()
