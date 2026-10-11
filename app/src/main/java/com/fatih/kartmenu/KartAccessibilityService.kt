@@ -453,8 +453,7 @@ class KartAccessibilityService : AccessibilityService() {
     ) {
         if (index >= steps.size) return
         val (keys, value) = steps[index]
-        val root = rootInActiveWindow ?: firstAppRoot()
-        val field = root?.let { findEditableByKeys(it, it, keys, 0) }
+        val field = findEditableInAll(keys)
         if (field == null) {
             // İlçe/Mahalle önceki seçim tamamlanmadan AÇILMAZ (gri/pasif). Alan görünene
             // kadar birkaç kez bekleyip tekrar dene; ancak çok beklersek sıradakine geç.
@@ -482,19 +481,20 @@ class KartAccessibilityService : AccessibilityService() {
         tries: Int,
     ) {
         handler.postDelayed({
-            val r2 = rootInActiveWindow ?: firstAppRoot()
-            val suggestion = r2?.let { findSuggestion(it, normalize(value), field) }
+            // Öneri satırı çoğu zaman AYRI bir açılır pencerede duruyor; sadece etkin pencereyi
+            // değil, tüm pencereleri tara.
+            val suggestion = findSuggestionInAll(normalize(value), field)
             when {
                 suggestion != null -> {
                     runCatching { suggestion.performAction(AccessibilityNodeInfo.ACTION_CLICK) }
                     // Seçimden sonra bir sonraki alanın (ör. İlçe→Mahalle) açılmasını bekle.
-                    handler.postDelayed({ autoCompleteStep(steps, index + 1, 0) }, 1200)
+                    handler.postDelayed({ autoCompleteStep(steps, index + 1, 0) }, 1300)
                 }
-                tries < 6 -> trySuggestion(steps, index, field, value, tries + 1)
+                tries < 8 -> trySuggestion(steps, index, field, value, tries + 1)
                 // Öneri çıkmadı; yine de sonraki adıma geç (değer en azından yazıldı).
                 else -> handler.postDelayed({ autoCompleteStep(steps, index + 1, 0) }, 400)
             }
-        }, 700)
+        }, 650)
     }
 
     /** Etiketi verilen anahtarlardan birini içeren ilk düzenlenebilir kutuyu bulur. */
@@ -524,25 +524,63 @@ class KartAccessibilityService : AccessibilityService() {
         node: AccessibilityNodeInfo?,
         normalizedValue: String,
         inputNode: AccessibilityNodeInfo,
+        exact: Boolean,
         depth: Int = 0,
     ): AccessibilityNodeInfo? {
         if (node == null || depth > 60) return null
         val text = node.text?.toString()
-        if (!node.isEditable && node != inputNode && !text.isNullOrBlank() &&
-            normalize(text).contains(normalizedValue)
-        ) {
-            clickableAncestor(node)?.let { return it }
+        if (!node.isEditable && node != inputNode && !text.isNullOrBlank()) {
+            val nt = normalize(text)
+            val hit = if (exact) nt == normalizedValue else nt.contains(normalizedValue)
+            // Tıklanabilir bir ata varsa onu, yoksa düğümün kendisini tıklamayı dene.
+            if (hit) return clickableAncestor(node) ?: node
         }
         for (i in 0 until node.childCount) {
-            findSuggestion(node.getChild(i), normalizedValue, inputNode, depth + 1)?.let { return it }
+            findSuggestion(node.getChild(i), normalizedValue, inputNode, exact, depth + 1)?.let { return it }
         }
         return null
+    }
+
+    /** Öneriyi önce birebir eşleşmeyle (ör. "Konya"), sonra içerenle TÜM pencerelerde arar. */
+    private fun findSuggestionInAll(
+        normalizedValue: String,
+        inputNode: AccessibilityNodeInfo,
+    ): AccessibilityNodeInfo? {
+        val roots = allRoots()
+        for (exact in booleanArrayOf(true, false)) {
+            for (r in roots) {
+                findSuggestion(r, normalizedValue, inputNode, exact, 0)?.let { return it }
+            }
+        }
+        return null
+    }
+
+    /** Verilen anahtarlara uyan düzenlenebilir kutuyu tüm pencerelerde arar. */
+    private fun findEditableInAll(keys: Array<String>): AccessibilityNodeInfo? {
+        for (r in allRoots()) {
+            findEditableByKeys(r, r, keys, 0)?.let { return it }
+        }
+        return null
+    }
+
+    /** Kendi overlay'imiz hariç, ekrandaki tüm pencerelerin köklerini toplar. */
+    private fun allRoots(): List<AccessibilityNodeInfo> {
+        val roots = ArrayList<AccessibilityNodeInfo>()
+        rootInActiveWindow?.let { if (it.packageName?.toString() != packageName) roots.add(it) }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            for (w in windows) {
+                val r = w.root ?: continue
+                if (r.packageName?.toString() == packageName) continue
+                if (roots.none { it == r }) roots.add(r)
+            }
+        }
+        return roots
     }
 
     private fun clickableAncestor(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
         var current = node
         var hops = 0
-        while (current != null && hops < 6) {
+        while (current != null && hops < 8) {
             if (current.isClickable) return current
             current = current.parent
             hops++
