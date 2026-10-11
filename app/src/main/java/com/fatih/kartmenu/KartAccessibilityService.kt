@@ -388,12 +388,17 @@ class KartAccessibilityService : AccessibilityService() {
         val line2T = address.line2.ifBlank { null }?.let { FillTarget(LINE2_KEYS, it) }
         val line3T = address.line3.ifBlank { null }?.let { FillTarget(LINE3_KEYS, it) }
         val line1T = address.line1.ifBlank { null }?.let { FillTarget(LINE1_KEYS, it) }
+        val fullNameT = address.fullName.ifBlank { null }?.let { FillTarget(FULLNAME_KEYS, it) }
+        val phoneT = address.phone.ifBlank { null }?.let { FillTarget(PHONE_KEYS, it) }
+        // Önce kişiye özel (çok belirgin) alanlar: ad soyad, telefon. Sonra adres satırları.
+        // Amazon'un görünüm kimliklerinde her kutuda "address" geçtiği için, "Tam ad (ad ve
+        // soyad)" kutusu önce isimle eşleşsin; aksi halde adres satırı sanılıp sokak yazılıyordu.
         val targets = listOfNotNull(
+            fullNameT,
+            phoneT,
             line2T,
             line3T,
             line1T,
-            address.fullName.ifBlank { null }?.let { FillTarget(FULLNAME_KEYS, it) },
-            address.phone.ifBlank { null }?.let { FillTarget(PHONE_KEYS, it) },
         )
         var filled = fillByLabel(fields, targets)
 
@@ -441,29 +446,55 @@ class KartAccessibilityService : AccessibilityService() {
      * taze bulur (önceki seçim ekranı değiştirmiş olabilir), odaklar, metni yazar, çıkan
      * öneriye tıklar ve bir sonraki alanın açılması için bekler.
      */
-    private fun autoCompleteStep(steps: List<Pair<Array<String>, String>>, index: Int) {
+    private fun autoCompleteStep(
+        steps: List<Pair<Array<String>, String>>,
+        index: Int,
+        attempt: Int = 0,
+    ) {
         if (index >= steps.size) return
         val (keys, value) = steps[index]
         val root = rootInActiveWindow ?: firstAppRoot()
         val field = root?.let { findEditableByKeys(it, it, keys, 0) }
         if (field == null) {
-            // Alan henüz hazır değil; kısa bekleyip tekrar dene, sonra sıradakine geç.
-            handler.postDelayed({ autoCompleteStep(steps, index + 1) }, 400)
+            // İlçe/Mahalle önceki seçim tamamlanmadan AÇILMAZ (gri/pasif). Alan görünene
+            // kadar birkaç kez bekleyip tekrar dene; ancak çok beklersek sıradakine geç.
+            if (attempt < 10) {
+                handler.postDelayed({ autoCompleteStep(steps, index, attempt + 1) }, 500)
+            } else {
+                handler.postDelayed({ autoCompleteStep(steps, index + 1, 0) }, 300)
+            }
             return
         }
         runCatching {
             field.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
             setText(field, value)
         }
+        // Öneri listesi ağdan gecikmeli gelebilir; birkaç kez aramayı dene.
+        trySuggestion(steps, index, field, value, 0)
+    }
+
+    /** Yazılan değere uyan öneriyi arar; çıkınca tıklar ve sıradaki alana geçer. */
+    private fun trySuggestion(
+        steps: List<Pair<Array<String>, String>>,
+        index: Int,
+        field: AccessibilityNodeInfo,
+        value: String,
+        tries: Int,
+    ) {
         handler.postDelayed({
             val r2 = rootInActiveWindow ?: firstAppRoot()
             val suggestion = r2?.let { findSuggestion(it, normalize(value), field) }
-            if (suggestion != null) {
-                runCatching { suggestion.performAction(AccessibilityNodeInfo.ACTION_CLICK) }
+            when {
+                suggestion != null -> {
+                    runCatching { suggestion.performAction(AccessibilityNodeInfo.ACTION_CLICK) }
+                    // Seçimden sonra bir sonraki alanın (ör. İlçe→Mahalle) açılmasını bekle.
+                    handler.postDelayed({ autoCompleteStep(steps, index + 1, 0) }, 1200)
+                }
+                tries < 6 -> trySuggestion(steps, index, field, value, tries + 1)
+                // Öneri çıkmadı; yine de sonraki adıma geç (değer en azından yazıldı).
+                else -> handler.postDelayed({ autoCompleteStep(steps, index + 1, 0) }, 400)
             }
-            // Seçimden sonra bir sonraki alanın (ör. İlçe) dolması için bekle.
-            handler.postDelayed({ autoCompleteStep(steps, index + 1) }, 900)
-        }, 900)
+        }, 700)
     }
 
     /** Etiketi verilen anahtarlardan birini içeren ilk düzenlenebilir kutuyu bulur. */
@@ -731,7 +762,7 @@ class KartAccessibilityService : AccessibilityService() {
 
         // Adres formu etiketleri (Amazon.com.tr ve genel formlar; TR + EN).
         private val FULLNAME_KEYS = arrayOf(
-            "ad soyad", "adiniz ve soyadiniz", "alici", "ad ve soyad", "isim soyisim",
+            "tam ad", "ad ve soyad", "ad soyad", "adiniz ve soyadiniz", "alici", "isim soyisim",
             "full name", "first and last name", "recipient", "contact name", "ad-soyad"
         )
         private val PHONE_KEYS = arrayOf(
@@ -758,9 +789,13 @@ class KartAccessibilityService : AccessibilityService() {
             "adres satiri 3", "adres satir 3", "adres 3", "address line 3", "addressline3",
             "daire", "dukkan", "kat", "apartment", "flat"
         )
+        // DİKKAT: Buraya tek başına "adres"/"address" KONULMAZ. Amazon'un görünüm
+        // kimliklerinde her kutuda (ad, telefon, şehir...) "address" geçtiği için bu, isim
+        // kutusuna sokak adının yazılması gibi kaymalara yol açıyordu. "Adres satırı 1"
+        // kutusu zaten "adres satiri 1" etiketi ve "sokak/cadde" ipucuyla tanınıyor.
         private val LINE1_KEYS = arrayOf(
             "adres satiri 1", "adres satir 1", "adres 1", "address line 1", "addressline1",
-            "acik adres", "adres", "address", "street", "cadde", "sokak"
+            "acik adres", "sokak", "cadde"
         )
     }
 }
