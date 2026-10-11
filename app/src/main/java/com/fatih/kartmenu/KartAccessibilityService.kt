@@ -468,19 +468,53 @@ class KartAccessibilityService : AccessibilityService() {
             toast("Ekran okunamadı; ad soyad panoya kopyalandı (60 sn)")
             return
         }
-        val fields = collectFields(root)
-        val targets = listOfNotNull(
-            name.ifBlank { null }?.let { FillTarget(SIGNUP_NAME_KEYS, it) },
-            password.ifBlank { null }?.let { FillTarget(SIGNUP_PASSWORD_KEYS, it) },
-        )
-        val filled = fillByLabel(fields, targets)
-        when {
-            filled >= targets.size && filled > 0 -> toast("Ad soyad ve parola dolduruldu")
-            filled > 0 -> toast("$filled alan dolduruldu")
-            // Hiçbir kutu etiketten bulunamadı: en azından seçili alana ad soyadı yaz, olmazsa panoya al.
-            fillFocusedField(name) -> toast("Ad soyad seçili alana yazıldı")
+        // Ekrandaki tüm metin kutuları (kendi overlay'imiz hariç), düzen sırasıyla.
+        val editables = ArrayList<AccessibilityNodeInfo>()
+        collectEditable(root, editables, 0)
+
+        // AD SOYAD kutusu: Amazon'da etiketler çoğu zaman okunmadığı için önce kullanıcının
+        // DOKUNDUĞU (odaktaki) kutuyu kullan; o yoksa etiketten; o da yoksa ilk kutu.
+        val focused = findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+            ?.takeIf { it.isEditable && it.packageName?.toString() != packageName }
+        val nameNode = focused
+            ?: editables.firstOrNull { containsAny(normalize(labelFor(it, root)), SIGNUP_NAME_KEYS) }
+            ?: editables.firstOrNull()
+
+        // PAROLA kutusu: etiketten; bulunamazsa ad soyad kutusunun hemen ALTINDAKİ kutu.
+        var pwNode = editables.firstOrNull {
+            it != nameNode && containsAny(normalize(labelFor(it, root)), SIGNUP_PASSWORD_KEYS)
+        }
+        if (pwNode == null && nameNode != null) pwNode = nextBelow(nameNode, editables)
+
+        var count = 0
+        if (name.isNotBlank() && nameNode != null && setText(nameNode, name)) count++
+        if (password.isNotBlank() && pwNode != null && pwNode != nameNode && setText(pwNode, password)) count++
+
+        when (count) {
+            2 -> toast("Ad soyad ve parola dolduruldu")
+            1 -> toast(if (pwNode == null || password.isBlank()) "Ad soyad yazıldı" else "1 alan dolduruldu")
             else -> { copyToClipboard(name); toast("Alan bulunamadı; ad soyad panoya kopyalandı (60 sn)") }
         }
+    }
+
+    /** Verilen kutunun hemen altındaki (ekranda en yakın alttaki) düzenlenebilir kutuyu bulur. */
+    private fun nextBelow(
+        anchor: AccessibilityNodeInfo,
+        nodes: List<AccessibilityNodeInfo>,
+    ): AccessibilityNodeInfo? {
+        val a = Rect(); anchor.getBoundsInScreen(a)
+        var best: AccessibilityNodeInfo? = null
+        var bestTop = Int.MAX_VALUE
+        for (n in nodes) {
+            if (n == anchor) continue
+            val r = Rect(); n.getBoundsInScreen(r)
+            // Çapanın altında başlayan ve en yakın olan kutu.
+            if (r.top >= a.bottom - dp(8) && r.top < bestTop) {
+                bestTop = r.top
+                best = n
+            }
+        }
+        return best
     }
 
     /**
