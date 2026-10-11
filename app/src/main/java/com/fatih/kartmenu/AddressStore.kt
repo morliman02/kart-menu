@@ -20,17 +20,17 @@ class AddressStore(context: Context) {
             val array = JSONArray(Crypto.decrypt(blob))
             (0 until array.length()).map { i ->
                 val o = array.getJSONObject(i)
+                // Yeni biçim: "phones" dizisi. Eski biçim: tek "phone" metni.
+                val phones = o.optJSONArray("phones")?.let { arr ->
+                    (0 until arr.length()).map { arr.getString(it) }
+                } ?: listOf(o.optString("phone"))
                 Address(
                     id = o.getString("id"),
                     fullName = o.optString("fullName"),
-                    phone = o.optString("phone"),
+                    phones = phones.map { it.trim() }.filter { it.isNotBlank() },
                     line1 = o.optString("line1"),
                     line2 = o.optString("line2"),
                     line3 = o.optString("line3"),
-                    mahalle = o.optString("mahalle"),
-                    district = o.optString("district"),
-                    city = o.optString("city"),
-                    postalCode = o.optString("postalCode"),
                 )
             }
         } catch (e: Exception) {
@@ -50,14 +50,10 @@ class AddressStore(context: Context) {
                 JSONObject()
                     .put("id", a.id)
                     .put("fullName", a.fullName)
-                    .put("phone", a.phone)
+                    .put("phones", JSONArray(a.phones))
                     .put("line1", a.line1)
                     .put("line2", a.line2)
                     .put("line3", a.line3)
-                    .put("mahalle", a.mahalle)
-                    .put("district", a.district)
-                    .put("city", a.city)
-                    .put("postalCode", a.postalCode)
             )
         }
         prefs.edit().putString(KEY_DATA, Crypto.encrypt(array.toString())).apply()

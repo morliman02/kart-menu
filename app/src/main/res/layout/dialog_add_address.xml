@@ -23,9 +23,11 @@
             android:id="@+id/phoneInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="top"
             android:hint="@string/addr_phone"
             android:importantForAutofill="no"
-            android:inputType="phone" />
+            android:inputType="textMultiLine"
+            android:minLines="3" />
 
         <EditText
             android:id="@+id/line1Input"
@@ -50,39 +52,5 @@
             android:hint="@string/addr_line3"
             android:importantForAutofill="no"
             android:inputType="textPostalAddress|textCapWords" />
-
-        <EditText
-            android:id="@+id/cityInput"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="@string/addr_city"
-            android:importantForAutofill="no"
-            android:inputType="text|textCapWords" />
-
-        <EditText
-            android:id="@+id/districtInput"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="@string/addr_district"
-            android:importantForAutofill="no"
-            android:inputType="text|textCapWords" />
-
-        <EditText
-            android:id="@+id/mahalleInput"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="@string/addr_mahalle"
-            android:importantForAutofill="no"
-            android:inputType="text|textCapWords" />
-
-        <EditText
-            android:id="@+id/postalInput"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:digits="0123456789"
-            android:hint="@string/addr_postal"
-            android:importantForAutofill="no"
-            android:inputType="number"
-            android:maxLength="5" />
     </LinearLayout>
 </ScrollView>

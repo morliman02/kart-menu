@@ -24,6 +24,7 @@ class MainActivity : Activity() {
     private lateinit var adapter: CardAdapter
     private lateinit var addressStore: AddressStore
     private lateinit var addressAdapter: AddressAdapter
+    private lateinit var signupStore: SignupStore
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,6 +42,7 @@ class MainActivity : Activity() {
         adapter = CardAdapter()
         addressStore = AddressStore(this)
         addressAdapter = AddressAdapter()
+        signupStore = SignupStore(this)
 
         val list = findViewById<ListView>(R.id.cardList)
         list.adapter = adapter
@@ -60,6 +62,7 @@ class MainActivity : Activity() {
 
         findViewById<Button>(R.id.addButton).setOnClickListener { showAddDialog() }
         findViewById<Button>(R.id.addAddressButton).setOnClickListener { showAddAddressDialog() }
+        findViewById<Button>(R.id.signupButton).setOnClickListener { showSignupDialog() }
         findViewById<Button>(R.id.overlayButton).setOnClickListener {
             startActivity(
                 Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
@@ -76,6 +79,14 @@ class MainActivity : Activity() {
         refreshPermissions()
         refreshCards()
         refreshAddresses()
+        refreshSignupStatus()
+    }
+
+    private fun refreshSignupStatus() {
+        val d = signupStore.getData()
+        findViewById<TextView>(R.id.signupStatus).text =
+            "E-posta: ${d.emails.size} adet · Ad soyad: ${d.names.size} adet · Parola: " +
+                if (d.password.isNotBlank()) "var" else "yok"
     }
 
     private fun refreshPermissions() {
@@ -173,10 +184,6 @@ class MainActivity : Activity() {
         val line1 = view.findViewById<EditText>(R.id.line1Input)
         val line2 = view.findViewById<EditText>(R.id.line2Input)
         val line3 = view.findViewById<EditText>(R.id.line3Input)
-        val mahalle = view.findViewById<EditText>(R.id.mahalleInput)
-        val district = view.findViewById<EditText>(R.id.districtInput)
-        val city = view.findViewById<EditText>(R.id.cityInput)
-        val postal = view.findViewById<EditText>(R.id.postalInput)
 
         val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.add_address)
@@ -193,21 +200,59 @@ class MainActivity : Activity() {
                     line1.error = "Adres satırı 1 boş olamaz"
                     return@setOnClickListener
                 }
+                // Birden fazla telefon: her satır (veya virgül) bir numara, en fazla 5 tanesi.
+                val phones = splitLines(phone.text.toString()).take(5)
                 addressStore.add(
                     Address(
                         id = UUID.randomUUID().toString(),
                         fullName = fullName.text.toString().trim(),
-                        phone = phone.text.toString().trim(),
+                        phones = phones,
                         line1 = addressLine1,
                         line2 = line2.text.toString().trim(),
                         line3 = line3.text.toString().trim(),
-                        mahalle = mahalle.text.toString().trim(),
-                        district = district.text.toString().trim(),
-                        city = city.text.toString().trim(),
-                        postalCode = postal.text.toString().trim(),
                     )
                 )
                 refreshAddresses()
+                dialog.dismiss()
+            }
+        }
+        dialog.show()
+    }
+
+    /** Çok satırlı metni satır veya virgülle ayırıp boşları atar, baştaki/sondaki boşlukları kırpar. */
+    private fun splitLines(text: String): List<String> =
+        text.split('\n', ',').map { it.trim() }.filter { it.isNotEmpty() }
+
+    private fun showSignupDialog() {
+        val view = layoutInflater.inflate(R.layout.dialog_signup, null)
+        val emails = view.findViewById<EditText>(R.id.emailsInput)
+        val names = view.findViewById<EditText>(R.id.namesInput)
+        val password = view.findViewById<EditText>(R.id.passwordInput)
+
+        // Mevcut bilgileri forma doldur (her biri alt alta).
+        val current = signupStore.getData()
+        emails.setText(current.emails.joinToString("\n"))
+        names.setText(current.names.joinToString("\n"))
+        password.setText(current.password)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.signup_title)
+            .setView(view)
+            .setPositiveButton(R.string.save, null)
+            .setNegativeButton(R.string.cancel, null)
+            .create()
+        dialog.window?.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                signupStore.save(
+                    SignupData(
+                        emails = splitLines(emails.text.toString()),
+                        names = splitLines(names.text.toString()),
+                        password = password.text.toString().trim(),
+                    )
+                )
+                refreshSignupStatus()
                 dialog.dismiss()
             }
         }

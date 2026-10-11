@@ -136,6 +136,8 @@ class KartAccessibilityService : AccessibilityService() {
         hideMenu()
         val cards = CardStore(this).getAll()
         val addresses = AddressStore(this).getAll()
+        val signupStore = SignupStore(this)
+        val signup = signupStore.getData()
         val dark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
             Configuration.UI_MODE_NIGHT_YES
         val bg = if (dark) Color.rgb(0x22, 0x24, 0x28) else Color.WHITE
@@ -205,6 +207,29 @@ class KartAccessibilityService : AccessibilityService() {
                 val row = menuRow(dark) { autoFill(address) }
                 row.addView(rowTitle("Adres ${index + 1}", fg))
                 row.addView(rowSub(address.summary, sub))
+                list.addView(row, rowParams())
+            }
+        }
+
+        // ---- Üyelik (hesap oluşturma) ----
+        if (!signup.isEmpty()) {
+            list.addView(sectionLabel("Üyelik", sub).apply { setPadding(0, dp(14), 0, 0) })
+            if (signup.emails.isNotEmpty()) {
+                val row = menuRow(dark) { deliver(signupStore.nextEmail(), "E-posta") }
+                row.addView(rowTitle("E-posta (sıradaki)", fg))
+                row.addView(rowSub("${signup.emails.size} e-posta · sırayla", sub))
+                list.addView(row, rowParams())
+            }
+            if (signup.names.isNotEmpty()) {
+                val row = menuRow(dark) { deliver(signup.randomName(), "Ad soyad") }
+                row.addView(rowTitle("Ad soyad (rastgele)", fg))
+                row.addView(rowSub("${signup.names.size} isim · rastgele", sub))
+                list.addView(row, rowParams())
+            }
+            if (signup.password.isNotBlank()) {
+                val row = menuRow(dark) { deliver(signup.password, "Parola") }
+                row.addView(rowTitle("Parola", fg))
+                row.addView(rowSub("sabit parola", sub))
                 list.addView(row, rowParams())
             }
         }
@@ -385,13 +410,14 @@ class KartAccessibilityService : AccessibilityService() {
         }
         val fields = collectFields(root)
 
-        // Önce "sabit" (önerisiz) alanları doldur: ad soyad, telefon, adres satırı 1/2/3.
-        // Şehir/İlçe/Mahalle ayrı ele alınır çünkü Amazon'da birbirine bağlı önerilerle seçiliyor.
+        // Sadece ad soyad, telefon ve adres satırı 1/2/3 doldurulur. Şehir/İlçe/Mahalle Amazon'da
+        // birbirine bağlı önerilerle seçildiği (ve otomatiği sorun çıkardığı) için kullanıcı elle girer.
         val line2T = address.line2.ifBlank { null }?.let { FillTarget(LINE2_KEYS, it) }
         val line3T = address.line3.ifBlank { null }?.let { FillTarget(LINE3_KEYS, it) }
         val line1T = address.line1.ifBlank { null }?.let { FillTarget(LINE1_KEYS, it) }
         val fullNameT = address.fullName.ifBlank { null }?.let { FillTarget(FULLNAME_KEYS, it) }
-        val phoneT = address.phone.ifBlank { null }?.let { FillTarget(PHONE_KEYS, it) }
+        // Birden fazla kayıtlı telefon varsa her doldurmada rastgele biri seçilir.
+        val phoneT = address.randomPhone().ifBlank { null }?.let { FillTarget(PHONE_KEYS, it) }
         // Önce kişiye özel (çok belirgin) alanlar: ad soyad, telefon. Sonra adres satırları.
         // Amazon'un görünüm kimliklerinde her kutuda "address" geçtiği için, "Tam ad (ad ve
         // soyad)" kutusu önce isimle eşleşsin; aksi halde adres satırı sanılıp sokak yazılıyordu.
@@ -428,19 +454,6 @@ class KartAccessibilityService : AccessibilityService() {
         }
 
         report(filled, fallbackValue = address.line1, fallbackLabel = "Adres")
-
-        // Bağımlı otomatik tamamlama: Amazon'da önce Şehir seçilmeden İlçe, İlçe seçilmeden
-        // Mahalle önerileri çıkmaz. Bu yüzden Şehir → İlçe → Mahalle sırasıyla tek tek yapılır:
-        // her adımda alan o anki ekrandan taze bulunur, metin yazılır, çıkan öneriye tıklanır,
-        // bir sonraki alanın açılması beklenir. Posta kodu Amazon tarafından otomatik gelir.
-        val steps = listOfNotNull(
-            address.city.ifBlank { null }?.let { CITY_KEYS to it },
-            address.district.ifBlank { null }?.let { DISTRICT_KEYS to it },
-            address.mahalle.ifBlank { null }?.let { MAHALLE_KEYS to it },
-        )
-        if (steps.isNotEmpty()) {
-            handler.postDelayed({ autoCompleteStep(steps, 0) }, 500)
-        }
     }
 
     /**
