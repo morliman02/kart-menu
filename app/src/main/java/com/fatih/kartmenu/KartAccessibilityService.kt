@@ -220,16 +220,16 @@ class KartAccessibilityService : AccessibilityService() {
                 row.addView(rowSub("${signup.emails.size} e-posta · sırayla", sub))
                 list.addView(row, rowParams())
             }
-            if (signup.names.isNotEmpty()) {
-                val row = menuRow(dark) { deliver(signup.randomName(), "Ad soyad") }
-                row.addView(rowTitle("Ad soyad (rastgele)", fg))
-                row.addView(rowSub("${signup.names.size} isim · rastgele", sub))
-                list.addView(row, rowParams())
-            }
-            if (signup.password.isNotBlank()) {
-                val row = menuRow(dark) { deliver(signup.password, "Parola") }
-                row.addView(rowTitle("Parola", fg))
-                row.addView(rowSub("sabit parola", sub))
+            // Ad soyad + Parola TEK dokunuşta birlikte (ad rastgele, parola sabit).
+            if (signup.names.isNotEmpty() || signup.password.isNotBlank()) {
+                val row = menuRow(dark) { signupFillAccount(signup.randomName(), signup.password) }
+                row.addView(rowTitle("Ad soyad + Parola", fg))
+                val sb = buildString {
+                    if (signup.names.isNotEmpty()) append("ad rastgele")
+                    if (signup.names.isNotEmpty() && signup.password.isNotBlank()) append(" · ")
+                    if (signup.password.isNotBlank()) append("parola sabit")
+                }
+                row.addView(rowSub(sb, sub))
                 list.addView(row, rowParams())
             }
         }
@@ -454,6 +454,33 @@ class KartAccessibilityService : AccessibilityService() {
         }
 
         report(filled, fallbackValue = address.line1, fallbackLabel = "Adres")
+    }
+
+    /**
+     * Üyelik ekranı (ör. Amazon "Hesap oluşturun"): "Adı ve soyadı" ve hemen altındaki "Parola"
+     * kutularını TEK dokunuşla birlikte doldurur. Ad soyad rastgele seçilir, parola sabittir.
+     */
+    private fun signupFillAccount(name: String, password: String) {
+        hideMenu()
+        val root = rootInActiveWindow ?: firstAppRoot()
+        if (root == null) {
+            copyToClipboard(name)
+            toast("Ekran okunamadı; ad soyad panoya kopyalandı (60 sn)")
+            return
+        }
+        val fields = collectFields(root)
+        val targets = listOfNotNull(
+            name.ifBlank { null }?.let { FillTarget(SIGNUP_NAME_KEYS, it) },
+            password.ifBlank { null }?.let { FillTarget(SIGNUP_PASSWORD_KEYS, it) },
+        )
+        val filled = fillByLabel(fields, targets)
+        when {
+            filled >= targets.size && filled > 0 -> toast("Ad soyad ve parola dolduruldu")
+            filled > 0 -> toast("$filled alan dolduruldu")
+            // Hiçbir kutu etiketten bulunamadı: en azından seçili alana ad soyadı yaz, olmazsa panoya al.
+            fillFocusedField(name) -> toast("Ad soyad seçili alana yazıldı")
+            else -> { copyToClipboard(name); toast("Alan bulunamadı; ad soyad panoya kopyalandı (60 sn)") }
+        }
     }
 
     /**
@@ -859,6 +886,14 @@ class KartAccessibilityService : AccessibilityService() {
         )
         private val PHONE_KEYS = arrayOf(
             "telefon", "cep telefon", "cep no", "gsm", "phone", "mobile", "tel no", "tel "
+        )
+        // Üyelik ekranı: ad soyad ve parola kutuları (TR + EN).
+        private val SIGNUP_NAME_KEYS = arrayOf(
+            "adi ve soyadi", "adi soyadi", "ad ve soyad", "ad soyad", "tam ad",
+            "full name", "fullname", "your name", "first and last name"
+        )
+        private val SIGNUP_PASSWORD_KEYS = arrayOf(
+            "parola", "sifre", "password", "passwd", "pass word"
         )
         private val POSTAL_KEYS = arrayOf(
             "posta kodu", "postakodu", "posta kod", "zip", "postal", "post code", "pin code"
