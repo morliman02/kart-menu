@@ -21,8 +21,8 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      # ubuntu-latest runner'ında Android SDK zaten kurulu (ANDROID_HOME ayarlı),
+      # ayrıca bir kurulum adımına gerek yok.
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
