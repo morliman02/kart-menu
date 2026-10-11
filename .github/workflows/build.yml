@@ -1,0 +1,48 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK as build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kart-menu-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish downloadable release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: beta-${{ github.run_number }}
+          name: Kart Menüsü beta ${{ github.run_number }}
+          body: |
+            Kart Menüsü kurulum dosyası (debug APK).
+            Telefonundan aşağıdaki **app-debug.apk** dosyasına dokunup kur.
+            Kurarken telefon "bilinmeyen kaynak" izni isterse izin ver.
+          files: app/build/outputs/apk/debug/app-debug.apk

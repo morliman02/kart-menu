@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="24dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="24dp">
+
+    <EditText
+        android:id="@+id/numberInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:autofillHints="creditCardNumber"
+        android:digits="0123456789 "
+        android:hint="@string/card_number"
+        android:importantForAutofill="no"
+        android:inputType="number"
+        android:maxLength="23" />
+
+    <EditText
+        android:id="@+id/expiryInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:digits="0123456789/"
+        android:hint="@string/expiry"
+        android:importantForAutofill="no"
+        android:inputType="number"
+        android:maxLength="5" />
+
+    <EditText
+        android:id="@+id/holderInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/holder"
+        android:importantForAutofill="no"
+        android:inputType="textPersonName|textCapCharacters" />
+</LinearLayout>

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="24dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="24dp">
+
+        <EditText
+            android:id="@+id/fullNameInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/addr_full_name"
+            android:importantForAutofill="no"
+            android:inputType="textPersonName|textCapWords" />
+
+        <EditText
+            android:id="@+id/phoneInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/addr_phone"
+            android:importantForAutofill="no"
+            android:inputType="phone" />
+
+        <EditText
+            android:id="@+id/lineInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/addr_line"
+            android:importantForAutofill="no"
+            android:inputType="textPostalAddress|textMultiLine|textCapSentences"
+            android:minLines="2" />
+
+        <EditText
+            android:id="@+id/districtInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/addr_district"
+            android:importantForAutofill="no"
+            android:inputType="text|textCapWords" />
+
+        <EditText
+            android:id="@+id/cityInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/addr_city"
+            android:importantForAutofill="no"
+            android:inputType="text|textCapWords" />
+
+        <EditText
+            android:id="@+id/postalInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:digits="0123456789"
+            android:hint="@string/addr_postal"
+            android:importantForAutofill="no"
+            android:inputType="number"
+            android:maxLength="5" />
+    </LinearLayout>
+</ScrollView>

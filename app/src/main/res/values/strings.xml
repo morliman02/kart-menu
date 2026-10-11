@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Kart Menüsü</string>
+    <string name="accessibility_label">Kart Menüsü kaydırma hareketi</string>
+    <string name="accessibility_description">Ekranın sol kenarından sağa kaydırdığınızda kayıtlı kartlarınızı gösteren yüzen menüyü açar. Seçtiğiniz kart bilgisini o anda seçili olan metin alanına yazar; alan yoksa panoya kopyalar. Ekran içeriği kaydedilmez ve hiçbir yere gönderilmez.</string>
+    <string name="permissions_title">İzinler</string>
+    <string name="overlay_permission">Diğer uygulamaların üstünde gösterme</string>
+    <string name="accessibility_permission">Erişilebilirlik servisi (kaydırma hareketi)</string>
+    <string name="grant">İzin ver</string>
+    <string name="granted">Açık ✓</string>
+    <string name="not_granted">Kapalı</string>
+    <string name="my_cards">Kartlarım</string>
+    <string name="add_card">Kart ekle</string>
+    <string name="no_cards">Henüz kart eklemediniz.</string>
+    <string name="usage_hint">Kullanım: herhangi bir ekrandayken (ör. Amazon ödeme sayfası) ekranın sol kenarındaki ince çubuktan parmağınızı sağa kaydırın. Açılan menüde bir karta dokunursanız kart numarası seçili alana yazılır, alan yoksa panoya kopyalanır (60 saniye sonra silinir). Kartı silmek için listede uzun basın.</string>
+    <string name="my_addresses">Adreslerim</string>
+    <string name="add_address">Adres ekle</string>
+    <string name="no_addresses">Henüz adres eklemediniz.</string>
+    <string name="addr_full_name">Ad soyad (alıcı)</string>
+    <string name="addr_phone">Telefon numarası</string>
+    <string name="addr_line">Adres (mahalle, cadde/sokak, bina, daire)</string>
+    <string name="addr_district">İlçe</string>
+    <string name="addr_city">Şehir / il</string>
+    <string name="addr_postal">Posta kodu</string>
+    <string name="card_number">Kart numarası</string>
+    <string name="expiry">Son kullanma (AA/YY)</string>
+    <string name="holder">Kart üzerindeki isim</string>
+    <string name="save">Kaydet</string>
+    <string name="cancel">Vazgeç</string>
+    <string name="delete">Sil</string>
+</resources>
