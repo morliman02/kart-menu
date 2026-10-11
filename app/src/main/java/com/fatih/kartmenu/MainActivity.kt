@@ -164,7 +164,10 @@ class MainActivity : Activity() {
         val view = layoutInflater.inflate(R.layout.dialog_add_address, null)
         val fullName = view.findViewById<EditText>(R.id.fullNameInput)
         val phone = view.findViewById<EditText>(R.id.phoneInput)
-        val line = view.findViewById<EditText>(R.id.lineInput)
+        val line1 = view.findViewById<EditText>(R.id.line1Input)
+        val line2 = view.findViewById<EditText>(R.id.line2Input)
+        val line3 = view.findViewById<EditText>(R.id.line3Input)
+        val mahalle = view.findViewById<EditText>(R.id.mahalleInput)
         val district = view.findViewById<EditText>(R.id.districtInput)
         val city = view.findViewById<EditText>(R.id.cityInput)
         val postal = view.findViewById<EditText>(R.id.postalInput)
@@ -179,32 +182,27 @@ class MainActivity : Activity() {
 
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val name = fullName.text.toString().trim()
-                val addressLine = line.text.toString().trim()
-                var ok = true
-                if (name.isEmpty()) {
-                    fullName.error = "Ad soyad boş olamaz"
-                    ok = false
+                val addressLine1 = line1.text.toString().trim()
+                if (addressLine1.isEmpty()) {
+                    line1.error = "Adres satırı 1 boş olamaz"
+                    return@setOnClickListener
                 }
-                if (addressLine.isEmpty()) {
-                    line.error = "Adres boş olamaz"
-                    ok = false
-                }
-                if (ok) {
-                    addressStore.add(
-                        Address(
-                            id = UUID.randomUUID().toString(),
-                            fullName = name,
-                            phone = phone.text.toString().trim(),
-                            line = addressLine,
-                            district = district.text.toString().trim(),
-                            city = city.text.toString().trim(),
-                            postalCode = postal.text.toString().trim(),
-                        )
+                addressStore.add(
+                    Address(
+                        id = UUID.randomUUID().toString(),
+                        fullName = fullName.text.toString().trim(),
+                        phone = phone.text.toString().trim(),
+                        line1 = addressLine1,
+                        line2 = line2.text.toString().trim(),
+                        line3 = line3.text.toString().trim(),
+                        mahalle = mahalle.text.toString().trim(),
+                        district = district.text.toString().trim(),
+                        city = city.text.toString().trim(),
+                        postalCode = postal.text.toString().trim(),
                     )
-                    refreshAddresses()
-                    dialog.dismiss()
-                }
+                )
+                refreshAddresses()
+                dialog.dismiss()
             }
         }
         dialog.show()
@@ -232,10 +230,8 @@ class MainActivity : Activity() {
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
             val row = convertView ?: layoutInflater.inflate(android.R.layout.simple_list_item_2, parent, false)
             val address = addresses[position]
-            row.findViewById<TextView>(android.R.id.text1).text = "Adres ${position + 1}  ·  ${address.fullName}"
-            val place = listOf(address.district, address.city, address.postalCode)
-                .filter { it.isNotBlank() }.joinToString(" / ")
-            row.findViewById<TextView>(android.R.id.text2).text = place.ifBlank { address.line }
+            row.findViewById<TextView>(android.R.id.text1).text = "Adres ${position + 1}  ·  ${address.title}"
+            row.findViewById<TextView>(android.R.id.text2).text = address.summary
             return row
         }
     }

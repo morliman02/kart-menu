@@ -339,69 +339,123 @@ class KartAccessibilityService : AccessibilityService() {
     /** Doldurulacak tek bir alan: etiket anahtar kelimeleri + yazılacak değer. */
     private class FillTarget(val keys: Array<String>, val value: String)
 
+    /** Ekrandaki düzenlenebilir bir kutu: düğümü, normalize edilmiş etiketi, durumu. */
+    private class Field(val node: AccessibilityNodeInfo, val label: String) {
+        var filled = false
+        var matched = -1 // eşleştiği hedefin listedeki indeksi, yoksa -1
+    }
+
     /**
      * Madde 6 + 8 (kart): Kullanıcı bir karta dokununca ekrandaki kutular tanınıp doldurulur.
      * Tanınan kutu yoksa odaktaki alana numarayı yazar, o da olmazsa panoya kopyalar.
      */
     private fun autoFill(card: Card) {
+        hideMenu()
+        val root = rootInActiveWindow ?: firstAppRoot()
+        if (root == null) {
+            copyToClipboard(card.number)
+            toast("Ekran okunamadı; kart numarası panoya kopyalandı (60 sn)")
+            return
+        }
+        val fields = collectFields(root)
         // Daha özel olan "son kullanma" numaradan önce gelsin ("kart" kelimesi ikisinde de geçebilir).
         val targets = listOfNotNull(
             FillTarget(EXPIRY_KEYS, card.expiry),
             card.holder.ifBlank { null }?.let { FillTarget(HOLDER_KEYS, it) },
             FillTarget(NUMBER_KEYS, card.number),
         )
-        fillForm(targets, fallbackValue = card.number, fallbackLabel = "Kart numarası")
-    }
-
-    /** Aynı mantık Amazon adres ekranı için (madde "adres"). */
-    private fun autoFill(address: Address) {
-        // Sıra önemli: daha özel etiketler önce denenir (posta/ilçe, "adres"ten önce).
-        val targets = buildList {
-            address.fullName.ifBlank { null }?.let { add(FillTarget(FULLNAME_KEYS, it)) }
-            address.phone.ifBlank { null }?.let { add(FillTarget(PHONE_KEYS, it)) }
-            address.postalCode.ifBlank { null }?.let { add(FillTarget(POSTAL_KEYS, it)) }
-            address.district.ifBlank { null }?.let { add(FillTarget(DISTRICT_KEYS, it)) }
-            address.city.ifBlank { null }?.let { add(FillTarget(CITY_KEYS, it)) }
-            address.line.ifBlank { null }?.let { add(FillTarget(ADDRESS_KEYS, it)) }
-        }
-        fillForm(targets, fallbackValue = address.line, fallbackLabel = "Adres")
+        val filled = fillByLabel(fields, targets)
+        report(filled, fallbackValue = card.number, fallbackLabel = "Kart numarası")
     }
 
     /**
-     * Alttaki ekranın (ör. Amazon) düzenlenebilir kutularını gezer, her kutuyu etiketine
-     * göre hedeflerden biriyle eşler ve değeri yazar. Her hedef en fazla bir kez kullanılır.
+     * Aynı mantık Amazon adres ekranı için. Alanlar Amazon.com.tr formuna göre:
+     * Adres satırı 1/2/3, Mahalle/Köy, İlçe, Şehir. Posta kodu Amazon'da otomatik
+     * (ve çoğu zaman düzenlenemez) olduğu için yazılmaya çalışılır ama zorlanmaz.
      */
-    private fun fillForm(targets: List<FillTarget>, fallbackValue: String, fallbackLabel: String) {
+    private fun autoFill(address: Address) {
         hideMenu()
-        // Menü overlay'i odak almadığından etkin pencere alttaki uygulamadır.
         val root = rootInActiveWindow ?: firstAppRoot()
         if (root == null) {
-            copyToClipboard(fallbackValue)
-            toast("Ekran okunamadı; $fallbackLabel panoya kopyalandı (60 sn)")
+            copyToClipboard(address.line1)
+            toast("Ekran okunamadı; adres panoya kopyalandı (60 sn)")
             return
         }
+        val fields = collectFields(root)
 
-        val fields = ArrayList<AccessibilityNodeInfo>()
-        collectEditable(root, fields, 0)
+        // Sıra önemli (ilk eşleşen kazanır): "adres satırı 2/3" önce gelmeli, çünkü
+        // genel "adres" anahtarı da onların etiketinde geçer. Posta kodu en sonda.
+        val line2T = address.line2.ifBlank { null }?.let { FillTarget(LINE2_KEYS, it) }
+        val line3T = address.line3.ifBlank { null }?.let { FillTarget(LINE3_KEYS, it) }
+        val line1T = address.line1.ifBlank { null }?.let { FillTarget(LINE1_KEYS, it) }
+        val targets = listOfNotNull(
+            line2T,
+            line3T,
+            line1T,
+            address.mahalle.ifBlank { null }?.let { FillTarget(MAHALLE_KEYS, it) },
+            address.district.ifBlank { null }?.let { FillTarget(DISTRICT_KEYS, it) },
+            address.city.ifBlank { null }?.let { FillTarget(CITY_KEYS, it) },
+            address.fullName.ifBlank { null }?.let { FillTarget(FULLNAME_KEYS, it) },
+            address.phone.ifBlank { null }?.let { FillTarget(PHONE_KEYS, it) },
+            address.postalCode.ifBlank { null }?.let { FillTarget(POSTAL_KEYS, it) },
+        )
+        var filled = fillByLabel(fields, targets)
 
+        // Amazon'un "Adres satırı 2/3" kutularında bazen okunur etiket olmaz; etiketten
+        // eşleşmediyse, "Adres satırı 1"i dolduran kutudan sonraki boş kutulara sırayla yaz.
+        val line1Idx = targets.indexOf(line1T)
+        if (line1Idx >= 0) {
+            val anchor = fields.indexOfFirst { it.filled && it.matched == line1Idx }
+            if (anchor >= 0) {
+                var j = anchor + 1
+                fun nextEmpty(): Field? {
+                    while (j < fields.size) {
+                        val f = fields[j]; j++
+                        if (!f.filled) return f
+                    }
+                    return null
+                }
+                if (line2T != null && fields.none { it.matched == targets.indexOf(line2T) }) {
+                    nextEmpty()?.let { if (setText(it.node, line2T.value)) { it.filled = true; filled++ } }
+                }
+                if (line3T != null && fields.none { it.matched == targets.indexOf(line3T) }) {
+                    nextEmpty()?.let { if (setText(it.node, line3T.value)) { it.filled = true; filled++ } }
+                }
+            }
+        }
+
+        report(filled, fallbackValue = address.line1, fallbackLabel = "Adres")
+    }
+
+    private fun collectFields(root: AccessibilityNodeInfo): List<Field> {
+        val nodes = ArrayList<AccessibilityNodeInfo>()
+        collectEditable(root, nodes, 0)
+        return nodes.map { Field(it, normalize(labelFor(it, root))) }
+    }
+
+    /** Her kutuyu etiketine göre bir hedefle eşleyip doldurur; her hedef en fazla bir kez. */
+    private fun fillByLabel(fields: List<Field>, targets: List<FillTarget>): Int {
         val usedTargets = HashSet<Int>()
         var filled = 0
-        for (node in fields) {
-            val label = normalize(labelFor(node, root))
-            var chosen = -1
+        for (f in fields) {
+            if (f.filled) continue
             for (i in targets.indices) {
                 if (i in usedTargets) continue
-                if (containsAny(label, targets[i].keys)) {
-                    chosen = i
+                if (containsAny(f.label, targets[i].keys)) {
+                    if (setText(f.node, targets[i].value)) {
+                        usedTargets += i
+                        f.filled = true
+                        f.matched = i
+                        filled++
+                    }
                     break
                 }
             }
-            if (chosen >= 0 && setText(node, targets[chosen].value)) {
-                usedTargets += chosen
-                filled++
-            }
         }
+        return filled
+    }
 
+    private fun report(filled: Int, fallbackValue: String, fallbackLabel: String) {
         when {
             filled > 0 -> toast("$filled alan otomatik dolduruldu")
             // Tanınan alan yok: en azından odaktaki alana yedek değeri yaz, olmazsa panoya al.
@@ -598,11 +652,23 @@ class KartAccessibilityService : AccessibilityService() {
             "ilce", "semt", "district", "county", "town"
         )
         private val CITY_KEYS = arrayOf(
-            "sehir", "sehir/il", "il ", "city", "province", "state", "il/sehir"
+            "sehir", "city", "province", "state"
         )
-        private val ADDRESS_KEYS = arrayOf(
-            "adres", "acik adres", "mahalle", "sokak", "cadde", "bina", "daire",
-            "address", "street", "address line", "apartment", "building", "flat"
+        private val MAHALLE_KEYS = arrayOf(
+            "mahalle", "koy", "neighbourhood", "neighborhood", "mahalle / koy"
+        )
+        // "Adres satırı 2/3" özel anahtarları (LINE1'deki genel "adres"ten ÖNCE denenir).
+        private val LINE2_KEYS = arrayOf(
+            "adres satiri 2", "adres satir 2", "adres 2", "address line 2", "addressline2",
+            "bina no", "bina", "apartman", "sokak no"
+        )
+        private val LINE3_KEYS = arrayOf(
+            "adres satiri 3", "adres satir 3", "adres 3", "address line 3", "addressline3",
+            "daire", "dukkan", "kat", "apartment", "flat"
+        )
+        private val LINE1_KEYS = arrayOf(
+            "adres satiri 1", "adres satir 1", "adres 1", "address line 1", "addressline1",
+            "acik adres", "adres", "address", "street", "cadde", "sokak"
         )
     }
 }

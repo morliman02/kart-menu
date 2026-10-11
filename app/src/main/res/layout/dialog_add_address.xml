@@ -28,13 +28,36 @@
             android:inputType="phone" />
 
         <EditText
-            android:id="@+id/lineInput"
+            android:id="@+id/line1Input"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="@string/addr_line"
+            android:hint="@string/addr_line1"
             android:importantForAutofill="no"
-            android:inputType="textPostalAddress|textMultiLine|textCapSentences"
-            android:minLines="2" />
+            android:inputType="textPostalAddress|textCapWords" />
+
+        <EditText
+            android:id="@+id/line2Input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/addr_line2"
+            android:importantForAutofill="no"
+            android:inputType="textPostalAddress|textCapWords" />
+
+        <EditText
+            android:id="@+id/line3Input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/addr_line3"
+            android:importantForAutofill="no"
+            android:inputType="textPostalAddress|textCapWords" />
+
+        <EditText
+            android:id="@+id/mahalleInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/addr_mahalle"
+            android:importantForAutofill="no"
+            android:inputType="text|textCapWords" />
 
         <EditText
             android:id="@+id/districtInput"

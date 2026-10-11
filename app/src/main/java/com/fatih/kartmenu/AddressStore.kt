@@ -24,7 +24,10 @@ class AddressStore(context: Context) {
                     id = o.getString("id"),
                     fullName = o.optString("fullName"),
                     phone = o.optString("phone"),
-                    line = o.optString("line"),
+                    line1 = o.optString("line1"),
+                    line2 = o.optString("line2"),
+                    line3 = o.optString("line3"),
+                    mahalle = o.optString("mahalle"),
                     district = o.optString("district"),
                     city = o.optString("city"),
                     postalCode = o.optString("postalCode"),
@@ -48,7 +51,10 @@ class AddressStore(context: Context) {
                     .put("id", a.id)
                     .put("fullName", a.fullName)
                     .put("phone", a.phone)
-                    .put("line", a.line)
+                    .put("line1", a.line1)
+                    .put("line2", a.line2)
+                    .put("line3", a.line3)
+                    .put("mahalle", a.mahalle)
                     .put("district", a.district)
                     .put("city", a.city)
                     .put("postalCode", a.postalCode)
