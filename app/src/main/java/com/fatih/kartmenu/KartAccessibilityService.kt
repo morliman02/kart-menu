@@ -383,26 +383,17 @@ class KartAccessibilityService : AccessibilityService() {
         }
         val fields = collectFields(root)
 
-        // Sıra önemli (ilk eşleşen kazanır): "adres satırı 2/3" önce gelmeli, çünkü
-        // genel "adres" anahtarı da onların etiketinde geçer. Posta kodu en sonda.
+        // Önce "sabit" (önerisiz) alanları doldur: ad soyad, telefon, adres satırı 1/2/3.
+        // Şehir/İlçe/Mahalle ayrı ele alınır çünkü Amazon'da birbirine bağlı önerilerle seçiliyor.
         val line2T = address.line2.ifBlank { null }?.let { FillTarget(LINE2_KEYS, it) }
         val line3T = address.line3.ifBlank { null }?.let { FillTarget(LINE3_KEYS, it) }
         val line1T = address.line1.ifBlank { null }?.let { FillTarget(LINE1_KEYS, it) }
-        // Şehir/İlçe/Mahalle: Amazon'da yazınca altında öneri çıkıp dokununca seçiliyor
-        // (ve posta kodu otomatik geliyor). Bunları "otomatik tamamlamalı" işaretliyoruz.
-        val cityT = address.city.ifBlank { null }?.let { FillTarget(CITY_KEYS, it) }
-        val districtT = address.district.ifBlank { null }?.let { FillTarget(DISTRICT_KEYS, it) }
-        val mahalleT = address.mahalle.ifBlank { null }?.let { FillTarget(MAHALLE_KEYS, it) }
         val targets = listOfNotNull(
             line2T,
             line3T,
             line1T,
-            mahalleT,
-            districtT,
-            cityT,
             address.fullName.ifBlank { null }?.let { FillTarget(FULLNAME_KEYS, it) },
             address.phone.ifBlank { null }?.let { FillTarget(PHONE_KEYS, it) },
-            address.postalCode.ifBlank { null }?.let { FillTarget(POSTAL_KEYS, it) },
         )
         var filled = fillByLabel(fields, targets)
 
@@ -431,36 +422,67 @@ class KartAccessibilityService : AccessibilityService() {
 
         report(filled, fallbackValue = address.line1, fallbackLabel = "Adres")
 
-        // Şehir/İlçe/Mahalle için açılan öneriye otomatik dokunmayı dene (en iyi çaba).
-        // Böylece seçim tamamlanır ve posta kodu Amazon tarafından otomatik gelir.
-        val autoCompleteItems = listOfNotNull(cityT, districtT, mahalleT).mapNotNull { t ->
-            val idx = targets.indexOf(t)
-            fields.firstOrNull { it.filled && it.matched == idx }?.let { it.node to t.value }
-        }
-        if (autoCompleteItems.isNotEmpty()) {
-            handler.postDelayed({ selectSuggestions(autoCompleteItems, 0) }, 500)
+        // Bağımlı otomatik tamamlama: Amazon'da önce Şehir seçilmeden İlçe, İlçe seçilmeden
+        // Mahalle önerileri çıkmaz. Bu yüzden Şehir → İlçe → Mahalle sırasıyla tek tek yapılır:
+        // her adımda alan o anki ekrandan taze bulunur, metin yazılır, çıkan öneriye tıklanır,
+        // bir sonraki alanın açılması beklenir. Posta kodu Amazon tarafından otomatik gelir.
+        val steps = listOfNotNull(
+            address.city.ifBlank { null }?.let { CITY_KEYS to it },
+            address.district.ifBlank { null }?.let { DISTRICT_KEYS to it },
+            address.mahalle.ifBlank { null }?.let { MAHALLE_KEYS to it },
+        )
+        if (steps.isNotEmpty()) {
+            handler.postDelayed({ autoCompleteStep(steps, 0) }, 500)
         }
     }
 
     /**
-     * Otomatik tamamlamalı alanları sırayla işler: alanı odakla + metni yeniden yaz
-     * (öneri listesi çıksın), kısa bir bekleme sonrası eşleşen öneriye dokun, sonra sıradakine geç.
+     * Bağımlı Şehir/İlçe/Mahalle alanlarını sırayla doldurur. Her adımda alanı ekrandan
+     * taze bulur (önceki seçim ekranı değiştirmiş olabilir), odaklar, metni yazar, çıkan
+     * öneriye tıklar ve bir sonraki alanın açılması için bekler.
      */
-    private fun selectSuggestions(items: List<Pair<AccessibilityNodeInfo, String>>, index: Int) {
-        if (index >= items.size) return
-        val (node, value) = items[index]
+    private fun autoCompleteStep(steps: List<Pair<Array<String>, String>>, index: Int) {
+        if (index >= steps.size) return
+        val (keys, value) = steps[index]
+        val root = rootInActiveWindow ?: firstAppRoot()
+        val field = root?.let { findEditableByKeys(it, it, keys, 0) }
+        if (field == null) {
+            // Alan henüz hazır değil; kısa bekleyip tekrar dene, sonra sıradakine geç.
+            handler.postDelayed({ autoCompleteStep(steps, index + 1) }, 400)
+            return
+        }
         runCatching {
-            node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
-            setText(node, value)
+            field.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+            setText(field, value)
         }
         handler.postDelayed({
-            val root = rootInActiveWindow ?: firstAppRoot()
-            val suggestion = root?.let { findSuggestion(it, normalize(value), node) }
-            suggestion?.let { clickable ->
-                runCatching { clickable.performAction(AccessibilityNodeInfo.ACTION_CLICK) }
+            val r2 = rootInActiveWindow ?: firstAppRoot()
+            val suggestion = r2?.let { findSuggestion(it, normalize(value), field) }
+            if (suggestion != null) {
+                runCatching { suggestion.performAction(AccessibilityNodeInfo.ACTION_CLICK) }
             }
-            handler.postDelayed({ selectSuggestions(items, index + 1) }, 600)
-        }, 650)
+            // Seçimden sonra bir sonraki alanın (ör. İlçe) dolması için bekle.
+            handler.postDelayed({ autoCompleteStep(steps, index + 1) }, 900)
+        }, 900)
+    }
+
+    /** Etiketi verilen anahtarlardan birini içeren ilk düzenlenebilir kutuyu bulur. */
+    private fun findEditableByKeys(
+        node: AccessibilityNodeInfo?,
+        root: AccessibilityNodeInfo,
+        keys: Array<String>,
+        depth: Int,
+    ): AccessibilityNodeInfo? {
+        if (node == null || depth > 60) return null
+        if (node.isEditable && node.packageName?.toString() != packageName &&
+            containsAny(normalize(labelFor(node, root)), keys)
+        ) {
+            return node
+        }
+        for (i in 0 until node.childCount) {
+            findEditableByKeys(node.getChild(i), root, keys, depth + 1)?.let { return it }
+        }
+        return null
     }
 
     /**

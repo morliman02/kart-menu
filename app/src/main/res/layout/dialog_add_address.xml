@@ -52,10 +52,10 @@
             android:inputType="textPostalAddress|textCapWords" />
 
         <EditText
-            android:id="@+id/mahalleInput"
+            android:id="@+id/cityInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="@string/addr_mahalle"
+            android:hint="@string/addr_city"
             android:importantForAutofill="no"
             android:inputType="text|textCapWords" />
 
@@ -68,10 +68,10 @@
             android:inputType="text|textCapWords" />
 
         <EditText
-            android:id="@+id/cityInput"
+            android:id="@+id/mahalleInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="@string/addr_city"
+            android:hint="@string/addr_mahalle"
             android:importantForAutofill="no"
             android:inputType="text|textCapWords" />
 
