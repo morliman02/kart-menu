@@ -30,19 +30,29 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
+      # Dosya adını sürüm numarasıyla ad verelim ki inen dosya eskisiyle karışmasın
+      # (hep "app-debug.apk" olunca indirilenler klasöründe aynı isimle birikiyordu).
+      - name: Sürümlü dosya adı oluştur
+        id: rename
+        run: |
+          VN=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts | head -1)
+          echo "version=$VN" >> "$GITHUB_OUTPUT"
+          cp app/build/outputs/apk/debug/app-debug.apk "Kart-Menusu-$VN.apk"
+
       - name: Upload APK as build artifact
         uses: actions/upload-artifact@v4
         with:
           name: kart-menu-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: Kart-Menusu-${{ steps.rename.outputs.version }}.apk
 
       - name: Publish downloadable release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: beta-${{ github.run_number }}
-          name: Kart Menüsü beta ${{ github.run_number }}
+          tag_name: v${{ steps.rename.outputs.version }}-${{ github.run_number }}
+          name: Kart Menüsü ${{ steps.rename.outputs.version }}
           body: |
-            Kart Menüsü kurulum dosyası (debug APK).
-            Telefonundan aşağıdaki **app-debug.apk** dosyasına dokunup kur.
+            Kart Menüsü sürüm ${{ steps.rename.outputs.version }} kurulum dosyası.
+            Aşağıdaki **Kart-Menusu-${{ steps.rename.outputs.version }}.apk** dosyasına dokunup kur.
+            Kurduktan sonra uygulamanın ana ekranında "Sürüm ${{ steps.rename.outputs.version }}" yazdığını gör.
             Kurarken telefon "bilinmeyen kaynak" izni isterse izin ver.
-          files: app/build/outputs/apk/debug/app-debug.apk
+          files: Kart-Menusu-${{ steps.rename.outputs.version }}.apk
