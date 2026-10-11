@@ -1,12 +1,14 @@
 package com.fatih.kartmenu
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.GestureDescription
 import android.content.ClipData
 import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.Typeface
@@ -481,18 +483,24 @@ class KartAccessibilityService : AccessibilityService() {
         tries: Int,
     ) {
         handler.postDelayed({
-            // Öneri satırı çoğu zaman AYRI bir açılır pencerede duruyor; sadece etkin pencereyi
-            // değil, tüm pencereleri tara.
+            // Öneri satırını yalnızca uygulamanın KENDİ pencerelerinde ara (klavyenin kelime
+            // önerisi şeridinde de "Konya" yazıyor; oraya dokunmak işe yaramaz).
             val suggestion = findSuggestionInAll(normalize(value), field)
             when {
                 suggestion != null -> {
-                    runCatching { suggestion.performAction(AccessibilityNodeInfo.ACTION_CLICK) }
+                    // Parmakla dokunur gibi, önerinin koordinatına gerçek bir dokunma gönder;
+                    // ACTION_CLICK bu açılır listelerde çoğu zaman işlemiyor.
+                    tapNode(suggestion)
+                    toast("$value seçildi")
                     // Seçimden sonra bir sonraki alanın (ör. İlçe→Mahalle) açılmasını bekle.
                     handler.postDelayed({ autoCompleteStep(steps, index + 1, 0) }, 1300)
                 }
                 tries < 8 -> trySuggestion(steps, index, field, value, tries + 1)
                 // Öneri çıkmadı; yine de sonraki adıma geç (değer en azından yazıldı).
-                else -> handler.postDelayed({ autoCompleteStep(steps, index + 1, 0) }, 400)
+                else -> {
+                    toast("$value önerisi bulunamadı")
+                    handler.postDelayed({ autoCompleteStep(steps, index + 1, 0) }, 400)
+                }
             }
         }, 650)
     }
@@ -532,8 +540,9 @@ class KartAccessibilityService : AccessibilityService() {
         if (!node.isEditable && node != inputNode && !text.isNullOrBlank()) {
             val nt = normalize(text)
             val hit = if (exact) nt == normalizedValue else nt.contains(normalizedValue)
-            // Tıklanabilir bir ata varsa onu, yoksa düğümün kendisini tıklamayı dene.
-            if (hit) return clickableAncestor(node) ?: node
+            // Metin düğümünü döndür; tapNode koordinatına gerçek dokunma gönderir (satırın
+            // tam üstüne), gerekirse tıklanabilir ataya düşer.
+            if (hit) return node
         }
         for (i in 0 until node.childCount) {
             findSuggestion(node.getChild(i), normalizedValue, inputNode, exact, depth + 1)?.let { return it }
@@ -541,12 +550,17 @@ class KartAccessibilityService : AccessibilityService() {
         return null
     }
 
-    /** Öneriyi önce birebir eşleşmeyle (ör. "Konya"), sonra içerenle TÜM pencerelerde arar. */
+    /**
+     * Öneriyi önce birebir (ör. "Konya"), sonra içerenle ("Sedirler Mh." → "sedirler") arar.
+     * SADECE giriş kutusunun uygulamasına (Amazon) ait pencerelerde; klavye/sistem pencereleri
+     * hariç — klavyenin kelime önerisi şeridinde de aynı metin olabiliyor.
+     */
     private fun findSuggestionInAll(
         normalizedValue: String,
         inputNode: AccessibilityNodeInfo,
     ): AccessibilityNodeInfo? {
-        val roots = allRoots()
+        val appPkg = inputNode.packageName?.toString()
+        val roots = allRoots().filter { appPkg == null || it.packageName?.toString() == appPkg }
         for (exact in booleanArrayOf(true, false)) {
             for (r in roots) {
                 findSuggestion(r, normalizedValue, inputNode, exact, 0)?.let { return it }
@@ -555,7 +569,7 @@ class KartAccessibilityService : AccessibilityService() {
         return null
     }
 
-    /** Verilen anahtarlara uyan düzenlenebilir kutuyu tüm pencerelerde arar. */
+    /** Verilen anahtarlara uyan düzenlenebilir kutuyu tüm uygulama pencerelerinde arar. */
     private fun findEditableInAll(keys: Array<String>): AccessibilityNodeInfo? {
         for (r in allRoots()) {
             findEditableByKeys(r, r, keys, 0)?.let { return it }
@@ -563,18 +577,41 @@ class KartAccessibilityService : AccessibilityService() {
         return null
     }
 
-    /** Kendi overlay'imiz hariç, ekrandaki tüm pencerelerin köklerini toplar. */
+    /**
+     * Ekrandaki uygulama pencerelerinin köklerini toplar: kendi overlay'imiz, klavye (IME) ve
+     * sistem pencereleri hariç. Açılır öneri listesi ayrı bir uygulama penceresi olabilir.
+     */
     private fun allRoots(): List<AccessibilityNodeInfo> {
         val roots = ArrayList<AccessibilityNodeInfo>()
         rootInActiveWindow?.let { if (it.packageName?.toString() != packageName) roots.add(it) }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             for (w in windows) {
+                val t = w.type
+                if (t == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD ||
+                    t == android.view.accessibility.AccessibilityWindowInfo.TYPE_SYSTEM
+                ) continue
                 val r = w.root ?: continue
                 if (r.packageName?.toString() == packageName) continue
                 if (roots.none { it == r }) roots.add(r)
             }
         }
         return roots
+    }
+
+    /** Bir düğümün ekran koordinatına, parmakla dokunur gibi gerçek bir dokunma gönderir. */
+    private fun tapNode(node: AccessibilityNodeInfo): Boolean {
+        val rect = Rect()
+        node.getBoundsInScreen(rect)
+        if (rect.width() > 0 && rect.height() > 0) {
+            val path = Path().apply { moveTo(rect.exactCenterX(), rect.exactCenterY()) }
+            val gesture = GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0, 60))
+                .build()
+            if (runCatching { dispatchGesture(gesture, null, null) }.getOrDefault(false)) return true
+        }
+        // Dokunma gönderilemediyse yedek: tıklanabilir ata (yoksa düğümün kendisi) üzerinde ACTION_CLICK.
+        val target = clickableAncestor(node) ?: node
+        return runCatching { target.performAction(AccessibilityNodeInfo.ACTION_CLICK) }.getOrDefault(false)
     }
 
     private fun clickableAncestor(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
