@@ -25,6 +25,7 @@ class MainActivity : Activity() {
     private lateinit var addressStore: AddressStore
     private lateinit var addressAdapter: AddressAdapter
     private lateinit var signupStore: SignupStore
+    private lateinit var asinStore: AsinStore
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +44,7 @@ class MainActivity : Activity() {
         addressStore = AddressStore(this)
         addressAdapter = AddressAdapter()
         signupStore = SignupStore(this)
+        asinStore = AsinStore(this)
 
         val list = findViewById<ListView>(R.id.cardList)
         list.adapter = adapter
@@ -64,6 +66,7 @@ class MainActivity : Activity() {
         findViewById<Button>(R.id.addButton).setOnClickListener { showCardDialog(null) }
         findViewById<Button>(R.id.addAddressButton).setOnClickListener { showAddressDialog(null) }
         findViewById<Button>(R.id.signupButton).setOnClickListener { showSignupDialog() }
+        findViewById<Button>(R.id.asinButton).setOnClickListener { showAsinDialog() }
         findViewById<Button>(R.id.overlayButton).setOnClickListener {
             startActivity(
                 Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
@@ -81,6 +84,45 @@ class MainActivity : Activity() {
         refreshCards()
         refreshAddresses()
         refreshSignupStatus()
+        refreshAsinStatus()
+    }
+
+    private fun refreshAsinStatus() {
+        val asins = asinStore.getAll()
+        findViewById<TextView>(R.id.asinStatus).text =
+            if (asins.isEmpty()) "Kayıtlı ASIN yok."
+            else "${asins.size} ASIN · menüde amz1…amz${asins.size}"
+    }
+
+    /** ASIN listesini düzenler: virgül veya alt alta, en fazla 5. Boş kaydet = listeyi siler. */
+    private fun showAsinDialog() {
+        val view = layoutInflater.inflate(R.layout.dialog_asin, null)
+        val input = view.findViewById<EditText>(R.id.asinInput)
+        input.setText(asinStore.getAll().joinToString("\n"))
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.asin_title)
+            .setView(view)
+            .setPositiveButton(R.string.save, null)
+            .setNeutralButton(R.string.delete, null)
+            .setNegativeButton(R.string.cancel, null)
+            .create()
+        dialog.window?.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                asinStore.save(splitLines(input.text.toString()))
+                refreshAsinStatus()
+                dialog.dismiss()
+            }
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                asinStore.save(emptyList())
+                refreshAsinStatus()
+                Toast.makeText(this, "ASIN listesi silindi", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            }
+        }
+        dialog.show()
     }
 
     private fun refreshSignupStatus() {

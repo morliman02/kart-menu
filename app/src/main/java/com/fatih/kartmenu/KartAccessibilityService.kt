@@ -138,6 +138,7 @@ class KartAccessibilityService : AccessibilityService() {
         val addresses = AddressStore(this).getAll()
         val signupStore = SignupStore(this)
         val signup = signupStore.getData()
+        val asins = AsinStore(this).getAll()
         val dark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
             Configuration.UI_MODE_NIGHT_YES
         val bg = if (dark) Color.rgb(0x22, 0x24, 0x28) else Color.WHITE
@@ -251,6 +252,30 @@ class KartAccessibilityService : AccessibilityService() {
                 row.addView(rowSub(sb, sub))
                 list.addView(row, rowParams())
             }
+        }
+
+        // ---- ASIN'ler ----
+        // Her ASIN için amz1, amz2, … mavi kutu (chip). Basınca o ASIN, seçili alana
+        // (genelde Amazon arama kutusu) yazılır; alan yoksa panoya kopyalanır.
+        if (asins.isNotEmpty()) {
+            list.addView(sectionLabel("ASIN", sub).apply { setPadding(0, dp(14), 0, 0) })
+            val row = menuRow(dark) { deliver(asins.first(), "amz1") }
+            row.addView(rowTitle("Ürün kodu", fg))
+            row.addView(rowSub("${asins.size} ASIN · amz1…amz${asins.size}", sub))
+            val chips = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(6), 0, 0)
+            }
+            asins.forEachIndexed { i, asin ->
+                val label = "amz${i + 1}"
+                chips.addView(chip(label, brand) { deliver(asin, label) })
+            }
+            // 5 kutu menü genişliğini aşabileceği için yatay kaydırılabilir.
+            row.addView(android.widget.HorizontalScrollView(this).apply {
+                isHorizontalScrollBarEnabled = false
+                addView(chips)
+            })
+            list.addView(row, rowParams())
         }
 
         // Ekle / düzenle için uygulamayı aç.

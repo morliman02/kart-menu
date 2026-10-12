@@ -168,4 +168,34 @@
         android:layout_height="wrap_content"
         android:paddingBottom="8dp"
         android:textAppearance="?android:attr/textAppearanceSmall" />
+
+    <!-- ASIN'ler -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingTop="8dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/asin_title"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/asinButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/asin_edit" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/asinStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingBottom="8dp"
+        android:textAppearance="?android:attr/textAppearanceSmall" />
 </LinearLayout>
