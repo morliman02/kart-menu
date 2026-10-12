@@ -178,87 +178,78 @@ class KartAccessibilityService : AccessibilityService() {
 
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 
-        // ---- Kartlar ----
-        list.addView(sectionLabel("Kartlar", sub))
-        if (cards.isEmpty()) {
-            list.addView(emptyLabel("Kayıtlı kart yok.", sub))
-        } else {
-            cards.forEachIndexed { index, card ->
-                val row = menuRow(dark) { autoFill(card) }
-                row.addView(rowTitle("Kart ${index + 1}   ${card.masked}", fg))
-                row.addView(rowSub("${card.holder} · SKT ${card.expiry}", sub))
-                val actions = LinearLayout(this).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    setPadding(0, dp(6), 0, 0)
-                }
-                actions.addView(chip("Numara", brand) { deliver(card.number, "Kart numarası") })
-                actions.addView(chip("SKT", brand) { deliver(card.expiry, "Son kullanma tarihi") })
-                actions.addView(chip("İsim", brand) { deliver(card.holder, "Kart üzerindeki isim") })
-                row.addView(actions)
-                list.addView(row, rowParams())
+        // Sıralama (fatih'in isteği): E-posta, Ad soyad+Parola, Adres, Kart, ASIN.
+        // Bölüm başlıkları (Kartlar/Adresler/Üyelik/ASIN) menüyü genişlettiği için
+        // KALDIRILDI; her satır zaten kendi başlığını taşıyor. Boş bölümler hiç gösterilmez.
+
+        // ---- E-posta (sıradaki) ----
+        if (signup.emails.isNotEmpty()) {
+            val row = menuRow(dark) { deliver(signupStore.nextEmail(), "E-posta") }
+            row.addView(rowTitle("E-posta (sıradaki)", fg))
+            row.addView(rowSub("${signup.emails.size} e-posta · sırayla", sub))
+            list.addView(row, rowParams())
+        }
+
+        // ---- Ad soyad + Parola (TEK dokunuşta birlikte; ad rastgele, parola sabit) ----
+        if (signup.names.isNotEmpty() || signup.password.isNotBlank()) {
+            val row = menuRow(dark) { signupFillAccount(signup.randomName(), signup.password) }
+            row.addView(rowTitle("Ad soyad + Parola", fg))
+            val sb = buildString {
+                if (signup.names.isNotEmpty()) append("ad rastgele")
+                if (signup.names.isNotEmpty() && signup.password.isNotBlank()) append(" · ")
+                if (signup.password.isNotBlank()) append("parola sabit")
             }
+            row.addView(rowSub(sb, sub))
+            list.addView(row, rowParams())
         }
 
         // ---- Adresler ----
-        list.addView(sectionLabel("Adresler", sub).apply { setPadding(0, dp(14), 0, 0) })
-        if (addresses.isEmpty()) {
-            list.addView(emptyLabel("Kayıtlı adres yok.", sub))
-        } else {
-            addresses.forEachIndexed { index, address ->
-                val row = menuRow(dark) { autoFill(address) }
-                row.addView(rowTitle("Adres ${index + 1}", fg))
-                row.addView(rowSub(address.summary, sub))
-                // Şehir / İlçe / Mahalle: kartlardaki gibi mavi kutu. Kullanıcı Amazon'daki
-                // kutuya dokunur, buradaki kutuya basar, değer o alana yazılır; açılan
-                // öneri listesinden kendisi seçer (otomatik seçim denenmez).
-                if (address.city.isNotBlank() || address.district.isNotBlank() || address.mahalle.isNotBlank()) {
-                    val chips = LinearLayout(this).apply {
-                        orientation = LinearLayout.HORIZONTAL
-                        setPadding(0, dp(6), 0, 0)
-                    }
-                    if (address.city.isNotBlank()) {
-                        chips.addView(chip("Şehir", brand) { deliver(address.city, "Şehir") })
-                    }
-                    if (address.district.isNotBlank()) {
-                        chips.addView(chip("İlçe", brand) { deliver(address.district, "İlçe") })
-                    }
-                    if (address.mahalle.isNotBlank()) {
-                        chips.addView(chip("Mah.", brand) { deliver(address.mahalle, "Mahalle / Köy") })
-                    }
-                    row.addView(chips)
+        addresses.forEachIndexed { index, address ->
+            val row = menuRow(dark) { autoFill(address) }
+            row.addView(rowTitle("Adres ${index + 1}", fg))
+            row.addView(rowSub(address.summary, sub))
+            // Şehir / İlçe / Mahalle: kartlardaki gibi mavi kutu. Kullanıcı Amazon'daki
+            // kutuya dokunur, buradaki kutuya basar, değer o alana yazılır; açılan
+            // öneri listesinden kendisi seçer (otomatik seçim denenmez).
+            if (address.city.isNotBlank() || address.district.isNotBlank() || address.mahalle.isNotBlank()) {
+                val chips = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    setPadding(0, dp(6), 0, 0)
                 }
-                list.addView(row, rowParams())
+                if (address.city.isNotBlank()) {
+                    chips.addView(chip("Şehir", brand) { deliver(address.city, "Şehir") })
+                }
+                if (address.district.isNotBlank()) {
+                    chips.addView(chip("İlçe", brand) { deliver(address.district, "İlçe") })
+                }
+                if (address.mahalle.isNotBlank()) {
+                    chips.addView(chip("Mah.", brand) { deliver(address.mahalle, "Mahalle / Köy") })
+                }
+                row.addView(chips)
             }
+            list.addView(row, rowParams())
         }
 
-        // ---- Üyelik (hesap oluşturma) ----
-        if (!signup.isEmpty()) {
-            list.addView(sectionLabel("Üyelik", sub).apply { setPadding(0, dp(14), 0, 0) })
-            if (signup.emails.isNotEmpty()) {
-                val row = menuRow(dark) { deliver(signupStore.nextEmail(), "E-posta") }
-                row.addView(rowTitle("E-posta (sıradaki)", fg))
-                row.addView(rowSub("${signup.emails.size} e-posta · sırayla", sub))
-                list.addView(row, rowParams())
+        // ---- Kartlar ----
+        cards.forEachIndexed { index, card ->
+            val row = menuRow(dark) { autoFill(card) }
+            row.addView(rowTitle("Kart ${index + 1}   ${card.masked}", fg))
+            row.addView(rowSub("${card.holder} · SKT ${card.expiry}", sub))
+            val actions = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, dp(6), 0, 0)
             }
-            // Ad soyad + Parola TEK dokunuşta birlikte (ad rastgele, parola sabit).
-            if (signup.names.isNotEmpty() || signup.password.isNotBlank()) {
-                val row = menuRow(dark) { signupFillAccount(signup.randomName(), signup.password) }
-                row.addView(rowTitle("Ad soyad + Parola", fg))
-                val sb = buildString {
-                    if (signup.names.isNotEmpty()) append("ad rastgele")
-                    if (signup.names.isNotEmpty() && signup.password.isNotBlank()) append(" · ")
-                    if (signup.password.isNotBlank()) append("parola sabit")
-                }
-                row.addView(rowSub(sb, sub))
-                list.addView(row, rowParams())
-            }
+            actions.addView(chip("Numara", brand) { deliver(card.number, "Kart numarası") })
+            actions.addView(chip("SKT", brand) { deliver(card.expiry, "Son kullanma tarihi") })
+            actions.addView(chip("İsim", brand) { deliver(card.holder, "Kart üzerindeki isim") })
+            row.addView(actions)
+            list.addView(row, rowParams())
         }
 
         // ---- ASIN'ler ----
         // Her ASIN için amz1, amz2, … mavi kutu (chip). Basınca o ASIN, seçili alana
         // (genelde Amazon arama kutusu) yazılır; alan yoksa panoya kopyalanır.
         if (asins.isNotEmpty()) {
-            list.addView(sectionLabel("ASIN", sub).apply { setPadding(0, dp(14), 0, 0) })
             val row = menuRow(dark) { deliver(asins.first(), "amz1") }
             row.addView(rowTitle("Ürün kodu", fg))
             row.addView(rowSub("${asins.size} ASIN · amz1…amz${asins.size}", sub))
