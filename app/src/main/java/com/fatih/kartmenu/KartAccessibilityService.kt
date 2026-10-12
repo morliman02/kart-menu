@@ -231,19 +231,22 @@ class KartAccessibilityService : AccessibilityService() {
         }
 
         // ---- Kartlar ----
-        cards.forEachIndexed { index, card ->
-            val row = menuRow(dark) { autoFill(card) }
-            row.addView(rowTitle("Kart ${index + 1}   ${card.masked}", fg))
-            row.addView(rowSub("${card.holder} · SKT ${card.expiry}", sub))
-            val actions = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                setPadding(0, dp(6), 0, 0)
+        // Sade ve dar: her kart yan yana "Kart 1", "Kart 2"… mavi kutu. Numara/SKT/İsim
+        // ayrı kutuları kaldırıldı; kutuya dokununca o kartın tüm bilgileri (numara,
+        // SKT, isim) ekrandaki ilgili alanlara otomatik yazılır. Yan yana sığmazsa
+        // yatay kaydırılır.
+        if (cards.isNotEmpty()) {
+            val cardStrip = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            cards.forEachIndexed { index, card ->
+                cardStrip.addView(chip("Kart ${index + 1}", brand) { autoFill(card) })
             }
-            actions.addView(chip("Numara", brand) { deliver(card.number, "Kart numarası") })
-            actions.addView(chip("SKT", brand) { deliver(card.expiry, "Son kullanma tarihi") })
-            actions.addView(chip("İsim", brand) { deliver(card.holder, "Kart üzerindeki isim") })
-            row.addView(actions)
-            list.addView(row, rowParams())
+            list.addView(
+                android.widget.HorizontalScrollView(this).apply {
+                    isHorizontalScrollBarEnabled = false
+                    addView(cardStrip)
+                },
+                rowParams()
+            )
         }
 
         // ---- ASIN'ler ----
