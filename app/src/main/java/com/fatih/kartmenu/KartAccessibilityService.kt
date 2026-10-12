@@ -250,26 +250,22 @@ class KartAccessibilityService : AccessibilityService() {
         }
 
         // ---- ASIN'ler ----
-        // Her ASIN için amz1, amz2, … mavi kutu (chip). Basınca o ASIN, seçili alana
-        // (genelde Amazon arama kutusu) yazılır; alan yoksa panoya kopyalanır.
+        // Kartlar gibi sade ve soldan başlayan yan yana strip: amz1, amz2, … mavi kutu.
+        // Basınca o ASIN, seçili alana (genelde Amazon arama kutusu) yazılır; alan yoksa
+        // panoya kopyalanır. Sığmazsa yatay kaydırılır.
         if (asins.isNotEmpty()) {
-            val row = menuRow(dark) { deliver(asins.first(), "amz1") }
-            row.addView(rowTitle("Ürün kodu", fg))
-            row.addView(rowSub("${asins.size} ASIN · amz1…amz${asins.size}", sub))
-            val chips = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                setPadding(0, dp(6), 0, 0)
-            }
+            val asinStrip = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             asins.forEachIndexed { i, asin ->
                 val label = "amz${i + 1}"
-                chips.addView(chip(label, brand) { deliver(asin, label) })
+                asinStrip.addView(chip(label, brand) { deliver(asin, label) })
             }
-            // 5 kutu menü genişliğini aşabileceği için yatay kaydırılabilir.
-            row.addView(android.widget.HorizontalScrollView(this).apply {
-                isHorizontalScrollBarEnabled = false
-                addView(chips)
-            })
-            list.addView(row, rowParams())
+            list.addView(
+                android.widget.HorizontalScrollView(this).apply {
+                    isHorizontalScrollBarEnabled = false
+                    addView(asinStrip)
+                },
+                rowParams()
+            )
         }
 
         // Ekle / düzenle için uygulamayı aç.
@@ -383,14 +379,14 @@ class KartAccessibilityService : AccessibilityService() {
             setTextColor(color)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             typeface = Typeface.DEFAULT_BOLD
-            setPadding(dp(10), dp(4), dp(10), dp(4))
+            setPadding(dp(8), dp(4), dp(8), dp(4))
             background = GradientDrawable().apply {
                 setStroke(dp(1), color)
                 cornerRadius = dp(12).toFloat()
             }
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { marginEnd = dp(8) }
+            ).apply { marginEnd = dp(4) }
             setOnClickListener { onClick() }
         }
 
