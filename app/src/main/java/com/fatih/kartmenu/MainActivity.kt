@@ -76,6 +76,10 @@ class MainActivity : Activity() {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             Toast.makeText(this, "Listeden \"${getString(R.string.accessibility_label)}\" servisini açın", Toast.LENGTH_LONG).show()
         }
+        findViewById<Button>(R.id.otpNotifButton).setOnClickListener {
+            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            Toast.makeText(this, "Listeden \"${getString(R.string.otp_listener_label)}\" iznini açın", Toast.LENGTH_LONG).show()
+        }
     }
 
     override fun onResume() {
@@ -143,6 +147,18 @@ class MainActivity : Activity() {
                 getString(if (accessibilityOn) R.string.granted else R.string.not_granted)
         findViewById<Button>(R.id.overlayButton).visibility = if (overlayOn) View.GONE else View.VISIBLE
         findViewById<Button>(R.id.accessibilityButton).visibility = if (accessibilityOn) View.GONE else View.VISIBLE
+
+        val otpNotifOn = isNotificationListenerEnabled()
+        findViewById<TextView>(R.id.otpNotifStatus).text =
+            getString(R.string.otp_notif_permission) + ": " +
+                getString(if (otpNotifOn) R.string.granted else R.string.not_granted)
+        findViewById<Button>(R.id.otpNotifButton).visibility = if (otpNotifOn) View.GONE else View.VISIBLE
+    }
+
+    private fun isNotificationListenerEnabled(): Boolean {
+        val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners") ?: return false
+        val mine = ComponentName(this, OtpNotificationListener::class.java)
+        return flat.split(':').any { ComponentName.unflattenFromString(it) == mine }
     }
 
     private fun isAccessibilityServiceEnabled(): Boolean {

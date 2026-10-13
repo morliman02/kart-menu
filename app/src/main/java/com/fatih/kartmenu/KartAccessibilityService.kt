@@ -212,6 +212,13 @@ class KartAccessibilityService : AccessibilityService() {
             row.addView(rowSub("açık e-postadaki 6 haneli kodu alır", sub))
             list.addView(row, rowParams())
         }
+        // Mail bildiriminden yakalanan son OTP (varsa): tek dokunuşla seçili kutuya yazar.
+        OtpHolder.get()?.let { lastOtp ->
+            val row = menuRow(dark) { deliver(lastOtp, "OTP") }
+            row.addView(rowTitle("Son OTP: $lastOtp", fg))
+            row.addView(rowSub("mail bildiriminden geldi · dokun, kutuya yaz", sub))
+            list.addView(row, rowParams())
+        }
 
         // ---- Adresler ----
         addresses.forEachIndexed { index, address ->
@@ -551,7 +558,7 @@ class KartAccessibilityService : AccessibilityService() {
         if (attempt == 0) hideMenu()
         val texts = ArrayList<String>()
         for (r in allRoots()) collectTexts(r, texts, 0)
-        val code = findOtpCode(texts)
+        val code = OtpUtil.findInTexts(texts)
         if (code == null) {
             // E-posta/sayfa içeriği erişilebilirlik ağacına geç düşebilir; birkaç kez dene.
             if (attempt < 3) {
@@ -568,29 +575,6 @@ class KartAccessibilityService : AccessibilityService() {
         } else {
             toastLong("OTP kodu: $code — panoya kopyalandı. Amazon'daki kutuya basılı tutup Yapıştır de.")
         }
-    }
-
-    private fun findOtpCode(texts: List<String>): String? {
-        val six = Regex("(?<!\\d)\\d{6}(?!\\d)")
-        // Bazı e-postalar kodu "798 562" / "798-562" diye ayırarak gösterir.
-        val sixSplit = Regex("(?<!\\d)(\\d{3})[ \\-](\\d{3})(?!\\d)")
-        fun match(t: String): String? {
-            six.find(t)?.let { return it.value }
-            sixSplit.find(t)?.let { return it.groupValues[1] + it.groupValues[2] }
-            return null
-        }
-        // 1) Kod/OTP/şifre/doğrula kelimesinin geçtiği metinlerdeki 6 haneli.
-        for (t in texts) {
-            if (containsAny(normalize(t), OTP_CONTEXT_KEYS)) match(t)?.let { return it }
-        }
-        // 2) Tek başına 6 haneli duran bir metin (kod çoğu zaman kendi kutusunda yalnız olur).
-        for (t in texts) {
-            val trimmed = t.trim()
-            if (trimmed.length == 6 && trimmed.all { it.isDigit() }) return trimmed
-        }
-        // 3) Son çare: ekrandaki herhangi bir 6 haneli.
-        for (t in texts) match(t)?.let { return it }
-        return null
     }
 
     /** Ekrandaki (kendi overlay'imiz hariç) tüm metin ve içerik açıklamalarını toplar. */
@@ -1036,11 +1020,6 @@ class KartAccessibilityService : AccessibilityService() {
         )
         private val SIGNUP_PASSWORD_KEYS = arrayOf(
             "parola", "sifre", "password", "passwd", "pass word"
-        )
-        // OTP/doğrulama kodu bağlamı: 6 haneli kodu bu kelimelerin geçtiği metinlerde öncelikle arar.
-        private val OTP_CONTEXT_KEYS = arrayOf(
-            "otp", "kod", "code", "dogrula", "verif", "tek kullanimlik", "one-time", "one time",
-            "sifre", "parola", "password", "pin"
         )
         private val POSTAL_KEYS = arrayOf(
             "posta kodu", "postakodu", "posta kod", "zip", "postal", "post code", "pin code"
