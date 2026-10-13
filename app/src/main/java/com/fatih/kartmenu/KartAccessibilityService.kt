@@ -547,30 +547,41 @@ class KartAccessibilityService : AccessibilityService() {
      * duran 6 haneliyi, en son herhangi bir 6 haneliyi dener. Bulunca odaktaki alana yazar;
      * alan yoksa panoya kopyalar (60 sn). İnternet kullanılmaz, sadece görünen metin taranır.
      */
-    private fun readOtpFromScreen() {
-        hideMenu()
+    private fun readOtpFromScreen(attempt: Int = 0) {
+        if (attempt == 0) hideMenu()
         val texts = ArrayList<String>()
         for (r in allRoots()) collectTexts(r, texts, 0)
         val code = findOtpCode(texts)
         if (code == null) {
-            toast("Ekranda 6 haneli kod bulunamadı. E-postayı açıp tekrar dene.")
+            // E-posta/sayfa içeriği erişilebilirlik ağacına geç düşebilir; birkaç kez dene.
+            if (attempt < 3) {
+                handler.postDelayed({ readOtpFromScreen(attempt + 1) }, 400)
+            } else {
+                toastLong("Ekranda 6 haneli kod görünmüyor. Önce e-postayı AÇIP kodun göründüğü ekranda tekrar dene.")
+            }
             return
         }
+        // Her durumda panoya al (Amazon'a geçince yapıştırabilsin); bir kutu seçiliyse oraya da yaz.
+        copyToClipboard(code)
         if (fillFocusedField(code)) {
-            toast("OTP ($code) seçili alana yazıldı")
+            toastLong("OTP $code: seçili alana yazıldı (ayrıca panoya kopyalandı)")
         } else {
-            copyToClipboard(code)
-            toast("OTP kodu: $code — panoya kopyalandı (60 sn)")
+            toastLong("OTP kodu: $code — panoya kopyalandı. Amazon'daki kutuya basılı tutup Yapıştır de.")
         }
     }
 
     private fun findOtpCode(texts: List<String>): String? {
         val six = Regex("(?<!\\d)\\d{6}(?!\\d)")
+        // Bazı e-postalar kodu "798 562" / "798-562" diye ayırarak gösterir.
+        val sixSplit = Regex("(?<!\\d)(\\d{3})[ \\-](\\d{3})(?!\\d)")
+        fun match(t: String): String? {
+            six.find(t)?.let { return it.value }
+            sixSplit.find(t)?.let { return it.groupValues[1] + it.groupValues[2] }
+            return null
+        }
         // 1) Kod/OTP/şifre/doğrula kelimesinin geçtiği metinlerdeki 6 haneli.
         for (t in texts) {
-            if (containsAny(normalize(t), OTP_CONTEXT_KEYS)) {
-                six.find(t)?.let { return it.value }
-            }
+            if (containsAny(normalize(t), OTP_CONTEXT_KEYS)) match(t)?.let { return it }
         }
         // 2) Tek başına 6 haneli duran bir metin (kod çoğu zaman kendi kutusunda yalnız olur).
         for (t in texts) {
@@ -578,7 +589,7 @@ class KartAccessibilityService : AccessibilityService() {
             if (trimmed.length == 6 && trimmed.all { it.isDigit() }) return trimmed
         }
         // 3) Son çare: ekrandaki herhangi bir 6 haneli.
-        for (t in texts) six.find(t)?.let { return it.value }
+        for (t in texts) match(t)?.let { return it }
         return null
     }
 
@@ -976,6 +987,8 @@ class KartAccessibilityService : AccessibilityService() {
     // ---------------------------------------------------------------- yardımcılar
 
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
+
+    private fun toastLong(text: String) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
