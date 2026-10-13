@@ -203,6 +203,16 @@ class KartAccessibilityService : AccessibilityService() {
             list.addView(row, rowParams())
         }
 
+        // ---- OTP kodu (ekrandaki açık e-postadan) ----
+        // Açık e-postadaki 6 haneli doğrulama kodunu ekrandan okur; odaktaki alana yazar,
+        // yoksa panoya kopyalar (60 sn). İnternet kullanmaz, sadece görünen metni tarar.
+        run {
+            val row = menuRow(dark) { readOtpFromScreen() }
+            row.addView(rowTitle("OTP kodu (ekrandaki)", fg))
+            row.addView(rowSub("açık e-postadaki 6 haneli kodu alır", sub))
+            list.addView(row, rowParams())
+        }
+
         // ---- Adresler ----
         addresses.forEachIndexed { index, address ->
             val row = menuRow(dark) { autoFill(address) }
@@ -529,6 +539,57 @@ class KartAccessibilityService : AccessibilityService() {
             1 -> toast(if (pwNode == null || password.isBlank()) "Ad soyad yazıldı" else "1 alan dolduruldu")
             else -> { copyToClipboard(name); toast("Alan bulunamadı; ad soyad panoya kopyalandı (60 sn)") }
         }
+    }
+
+    /**
+     * Ekranda açık olan e-postadaki 6 haneli doğrulama kodunu (OTP) bulur. Önce "kod/OTP/
+     * şifre/doğrula" gibi kelimelerin geçtiği metinlerdeki 6 haneliyi, sonra tek başına
+     * duran 6 haneliyi, en son herhangi bir 6 haneliyi dener. Bulunca odaktaki alana yazar;
+     * alan yoksa panoya kopyalar (60 sn). İnternet kullanılmaz, sadece görünen metin taranır.
+     */
+    private fun readOtpFromScreen() {
+        hideMenu()
+        val texts = ArrayList<String>()
+        for (r in allRoots()) collectTexts(r, texts, 0)
+        val code = findOtpCode(texts)
+        if (code == null) {
+            toast("Ekranda 6 haneli kod bulunamadı. E-postayı açıp tekrar dene.")
+            return
+        }
+        if (fillFocusedField(code)) {
+            toast("OTP ($code) seçili alana yazıldı")
+        } else {
+            copyToClipboard(code)
+            toast("OTP kodu: $code — panoya kopyalandı (60 sn)")
+        }
+    }
+
+    private fun findOtpCode(texts: List<String>): String? {
+        val six = Regex("(?<!\\d)\\d{6}(?!\\d)")
+        // 1) Kod/OTP/şifre/doğrula kelimesinin geçtiği metinlerdeki 6 haneli.
+        for (t in texts) {
+            if (containsAny(normalize(t), OTP_CONTEXT_KEYS)) {
+                six.find(t)?.let { return it.value }
+            }
+        }
+        // 2) Tek başına 6 haneli duran bir metin (kod çoğu zaman kendi kutusunda yalnız olur).
+        for (t in texts) {
+            val trimmed = t.trim()
+            if (trimmed.length == 6 && trimmed.all { it.isDigit() }) return trimmed
+        }
+        // 3) Son çare: ekrandaki herhangi bir 6 haneli.
+        for (t in texts) six.find(t)?.let { return it.value }
+        return null
+    }
+
+    /** Ekrandaki (kendi overlay'imiz hariç) tüm metin ve içerik açıklamalarını toplar. */
+    private fun collectTexts(node: AccessibilityNodeInfo?, out: MutableList<String>, depth: Int) {
+        if (node == null || depth > 80) return
+        if (node.packageName?.toString() != packageName) {
+            node.text?.toString()?.let { if (it.isNotBlank()) out += it }
+            node.contentDescription?.toString()?.let { if (it.isNotBlank()) out += it }
+        }
+        for (i in 0 until node.childCount) collectTexts(node.getChild(i), out, depth + 1)
     }
 
     /** Verilen kutunun hemen altındaki (ekranda en yakın alttaki) düzenlenebilir kutuyu bulur. */
@@ -962,6 +1023,11 @@ class KartAccessibilityService : AccessibilityService() {
         )
         private val SIGNUP_PASSWORD_KEYS = arrayOf(
             "parola", "sifre", "password", "passwd", "pass word"
+        )
+        // OTP/doğrulama kodu bağlamı: 6 haneli kodu bu kelimelerin geçtiği metinlerde öncelikle arar.
+        private val OTP_CONTEXT_KEYS = arrayOf(
+            "otp", "kod", "code", "dogrula", "verif", "tek kullanimlik", "one-time", "one time",
+            "sifre", "parola", "password", "pin"
         )
         private val POSTAL_KEYS = arrayOf(
             "posta kodu", "postakodu", "posta kod", "zip", "postal", "post code", "pin code"
