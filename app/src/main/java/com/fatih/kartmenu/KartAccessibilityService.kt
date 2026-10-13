@@ -213,7 +213,7 @@ class KartAccessibilityService : AccessibilityService() {
             list.addView(row, rowParams())
         }
         // Mail bildiriminden yakalanan son OTP (varsa): tek dokunuşla seçili kutuya yazar.
-        OtpHolder.get()?.let { lastOtp ->
+        OtpStore(this).get()?.let { lastOtp ->
             val row = menuRow(dark) { deliver(lastOtp, "OTP") }
             row.addView(rowTitle("Son OTP: $lastOtp", fg))
             row.addView(rowSub("mail bildiriminden geldi · dokun, kutuya yaz", sub))

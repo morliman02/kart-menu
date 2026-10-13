@@ -149,6 +149,16 @@ class MainActivity : Activity() {
         findViewById<Button>(R.id.accessibilityButton).visibility = if (accessibilityOn) View.GONE else View.VISIBLE
 
         val otpNotifOn = isNotificationListenerEnabled()
+        // Güncelleme sonrası dinleyici "açık" görünse de sistem onu bazen yeniden bağlamıyor.
+        // Uygulama açılınca yeniden bağlanmasını iste; bu, onListenerConnected'ı tetikleyip
+        // panelde duran OTP bildirimlerini de taratır.
+        if (otpNotifOn) {
+            runCatching {
+                android.service.notification.NotificationListenerService.requestRebind(
+                    ComponentName(this, OtpNotificationListener::class.java)
+                )
+            }
+        }
         findViewById<TextView>(R.id.otpNotifStatus).text =
             getString(R.string.otp_notif_permission) + ": " +
                 getString(if (otpNotifOn) R.string.granted else R.string.not_granted)

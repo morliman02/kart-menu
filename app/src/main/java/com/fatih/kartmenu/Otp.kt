@@ -65,21 +65,34 @@ object OtpUtil {
 }
 
 /**
- * Mail bildiriminden yakalanan son OTP kodunu (ve ne zaman geldiğini) bellekte tutar.
- * Yüzen menüdeki "Son OTP" satırı buradan okur. Diske yazılmaz; süresi geçince boş döner.
+ * Mail bildiriminden yakalanan son OTP kodunu (ve ne zaman geldiğini) telefonda saklar.
+ * DİSKE yazılır (şifreli, [Crypto]) çünkü bildirimi yakalayan servis ile menüyü gösteren
+ * servis ayrı anlarda/süreçlerde çalışabilir; bellekte tutmak süreç yeniden başlayınca
+ * kayboluyordu. Yüzen menüdeki "Son OTP" satırı buradan okur; süresi geçince boş döner.
  */
-object OtpHolder {
-    @Volatile private var code: String? = null
-    @Volatile private var atMs: Long = 0L
+class OtpStore(context: Context) {
 
-    fun set(c: String) {
-        code = c
-        atMs = System.currentTimeMillis()
+    private val prefs = context.applicationContext
+        .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    fun set(code: String) {
+        prefs.edit()
+            .putString(KEY_CODE, Crypto.encrypt(code))
+            .putLong(KEY_AT, System.currentTimeMillis())
+            .apply()
     }
 
     /** Son kodu döndürür (varsayılan 5 dakikadan eskiyse boş). */
     fun get(maxAgeMs: Long = 5 * 60_000L): String? {
-        val c = code ?: return null
-        return if (System.currentTimeMillis() - atMs <= maxAgeMs) c else null
+        val enc = prefs.getString(KEY_CODE, null) ?: return null
+        val at = prefs.getLong(KEY_AT, 0L)
+        if (System.currentTimeMillis() - at > maxAgeMs) return null
+        return runCatching { Crypto.decrypt(enc) }.getOrNull()
+    }
+
+    companion object {
+        private const val PREFS_NAME = "otp_kasasi"
+        private const val KEY_CODE = "otp_sifreli"
+        private const val KEY_AT = "otp_zaman"
     }
 }

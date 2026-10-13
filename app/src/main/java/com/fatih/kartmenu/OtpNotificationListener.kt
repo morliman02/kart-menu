@@ -24,7 +24,18 @@ class OtpNotificationListener : NotificationListenerService() {
 
     private val handler = Handler(Looper.getMainLooper())
 
-    override fun onNotificationPosted(sbn: StatusBarNotification?) {
+    /**
+     * Servis (yeniden) bağlandığında, o an bildirim panelinde DURAN bildirimleri de tarar.
+     * Önemli: onNotificationPosted sadece YENİ gelen bildirimde çalışır; uygulama güncellenince
+     * dinleyici geç bağlanırsa, daha önce gelmiş OTP bildirimini bu sayede yine de yakalarız.
+     */
+    override fun onListenerConnected() {
+        runCatching { activeNotifications }.getOrNull()?.forEach { handle(it) }
+    }
+
+    override fun onNotificationPosted(sbn: StatusBarNotification?) = handle(sbn)
+
+    private fun handle(sbn: StatusBarNotification?) {
         val sbnPkg = sbn?.packageName
         if (sbnPkg == packageName) return // kendi bildirimimiz
         val n = sbn?.notification ?: return
@@ -41,7 +52,7 @@ class OtpNotificationListener : NotificationListenerService() {
         if (text.isBlank()) return
 
         val code = OtpUtil.findInNotification(text) ?: return
-        OtpHolder.set(code)
+        OtpStore(this).set(code)
         copyToClipboard(code)
         handler.post {
             Toast.makeText(this, "OTP $code yakalandı — menüden \"Son OTP\" ile yaz", Toast.LENGTH_LONG).show()
