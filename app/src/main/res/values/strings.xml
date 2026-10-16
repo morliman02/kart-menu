@@ -31,9 +31,6 @@
     <string name="signup_emails">E-posta listesi — her satıra bir e-posta (sırayla kullanılır)</string>
     <string name="signup_names">Ad soyad listesi — her satıra bir ad soyad (rastgele seçilir)</string>
     <string name="signup_password">Parola (sabit, hep aynısı yazılır)</string>
-    <string name="otp_listener_label">Kart Menüsü OTP bildirimi</string>
-    <string name="otp_notif_permission">Mail bildiriminden OTP yakalama</string>
-    <string name="otp_notif_grant">Bildirim erişimi</string>
     <string name="asin_title">ASIN\'ler (ürün kodu)</string>
     <string name="asin_edit">Düzenle</string>
     <string name="asin_hint">ASIN listesi — virgülle veya alt alta, en fazla 5 tane (ör. B0GNN6JYSC). Menüde amz1…amz5 kutuları olur.</string>

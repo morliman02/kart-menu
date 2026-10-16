@@ -203,23 +203,6 @@ class KartAccessibilityService : AccessibilityService() {
             list.addView(row, rowParams())
         }
 
-        // ---- OTP kodu (ekrandaki açık e-postadan) ----
-        // Açık e-postadaki 6 haneli doğrulama kodunu ekrandan okur; odaktaki alana yazar,
-        // yoksa panoya kopyalar (60 sn). İnternet kullanmaz, sadece görünen metni tarar.
-        run {
-            val row = menuRow(dark) { readOtpFromScreen() }
-            row.addView(rowTitle("OTP kodu (ekrandaki)", fg))
-            row.addView(rowSub("açık e-postadaki 6 haneli kodu alır", sub))
-            list.addView(row, rowParams())
-        }
-        // Mail bildiriminden yakalanan son OTP (varsa): tek dokunuşla seçili kutuya yazar.
-        OtpStore(this).get()?.let { lastOtp ->
-            val row = menuRow(dark) { deliver(lastOtp, "OTP") }
-            row.addView(rowTitle("Son OTP: $lastOtp", fg))
-            row.addView(rowSub("mail bildiriminden geldi · dokun, kutuya yaz", sub))
-            list.addView(row, rowParams())
-        }
-
         // ---- Adresler ----
         addresses.forEachIndexed { index, address ->
             val row = menuRow(dark) { autoFill(address) }
@@ -546,45 +529,6 @@ class KartAccessibilityService : AccessibilityService() {
             1 -> toast(if (pwNode == null || password.isBlank()) "Ad soyad yazıldı" else "1 alan dolduruldu")
             else -> { copyToClipboard(name); toast("Alan bulunamadı; ad soyad panoya kopyalandı (60 sn)") }
         }
-    }
-
-    /**
-     * Ekranda açık olan e-postadaki 6 haneli doğrulama kodunu (OTP) bulur. Önce "kod/OTP/
-     * şifre/doğrula" gibi kelimelerin geçtiği metinlerdeki 6 haneliyi, sonra tek başına
-     * duran 6 haneliyi, en son herhangi bir 6 haneliyi dener. Bulunca odaktaki alana yazar;
-     * alan yoksa panoya kopyalar (60 sn). İnternet kullanılmaz, sadece görünen metin taranır.
-     */
-    private fun readOtpFromScreen(attempt: Int = 0) {
-        if (attempt == 0) hideMenu()
-        val texts = ArrayList<String>()
-        for (r in allRoots()) collectTexts(r, texts, 0)
-        val code = OtpUtil.findInTexts(texts)
-        if (code == null) {
-            // E-posta/sayfa içeriği erişilebilirlik ağacına geç düşebilir; birkaç kez dene.
-            if (attempt < 3) {
-                handler.postDelayed({ readOtpFromScreen(attempt + 1) }, 400)
-            } else {
-                toastLong("Ekranda 6 haneli kod görünmüyor. Önce e-postayı AÇIP kodun göründüğü ekranda tekrar dene.")
-            }
-            return
-        }
-        // Her durumda panoya al (Amazon'a geçince yapıştırabilsin); bir kutu seçiliyse oraya da yaz.
-        copyToClipboard(code)
-        if (fillFocusedField(code)) {
-            toastLong("OTP $code: seçili alana yazıldı (ayrıca panoya kopyalandı)")
-        } else {
-            toastLong("OTP kodu: $code — panoya kopyalandı. Amazon'daki kutuya basılı tutup Yapıştır de.")
-        }
-    }
-
-    /** Ekrandaki (kendi overlay'imiz hariç) tüm metin ve içerik açıklamalarını toplar. */
-    private fun collectTexts(node: AccessibilityNodeInfo?, out: MutableList<String>, depth: Int) {
-        if (node == null || depth > 80) return
-        if (node.packageName?.toString() != packageName) {
-            node.text?.toString()?.let { if (it.isNotBlank()) out += it }
-            node.contentDescription?.toString()?.let { if (it.isNotBlank()) out += it }
-        }
-        for (i in 0 until node.childCount) collectTexts(node.getChild(i), out, depth + 1)
     }
 
     /** Verilen kutunun hemen altındaki (ekranda en yakın alttaki) düzenlenebilir kutuyu bulur. */
@@ -971,8 +915,6 @@ class KartAccessibilityService : AccessibilityService() {
     // ---------------------------------------------------------------- yardımcılar
 
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
-
-    private fun toastLong(text: String) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
