@@ -411,7 +411,14 @@ class KartAccessibilityService : AccessibilityService() {
      * Tanınan kutu yoksa odaktaki alana numarayı yazar, o da olmazsa panoya kopyalar.
      */
     private fun autoFill(card: Card) {
+        // Menüyü kapat, sonra KISA bir gecikmeyle doldur. removeView'dan hemen sonra
+        // pencere/odak durumu oturmadığı için ilk denemede ağaç bazen boş/eski dönüyordu;
+        // "ilk dokunuşta yapışmayıp ikincide yapışma"nın sebebi buydu. Gecikme bunu giderir.
         hideMenu()
+        handler.postDelayed({ fillCard(card) }, FILL_DELAY_MS)
+    }
+
+    private fun fillCard(card: Card) {
         val root = rootInActiveWindow ?: firstAppRoot()
         if (root == null) {
             copyToClipboard(card.number)
@@ -435,7 +442,13 @@ class KartAccessibilityService : AccessibilityService() {
      * (ve çoğu zaman düzenlenemez) olduğu için yazılmaya çalışılır ama zorlanmaz.
      */
     private fun autoFill(address: Address) {
+        // Menü kapandıktan kısa süre sonra doldur (bkz. fillCard'daki açıklama) — adrese ilk
+        // dokunuşta bazen yapıştırmama sorununun çözümü.
         hideMenu()
+        handler.postDelayed({ fillAddress(address) }, FILL_DELAY_MS)
+    }
+
+    private fun fillAddress(address: Address) {
         val root = rootInActiveWindow ?: firstAppRoot()
         if (root == null) {
             copyToClipboard(address.line1)
@@ -495,7 +508,12 @@ class KartAccessibilityService : AccessibilityService() {
      * kutularını TEK dokunuşla birlikte doldurur. Ad soyad rastgele seçilir, parola sabittir.
      */
     private fun signupFillAccount(name: String, password: String) {
+        // Menü kapandıktan kısa süre sonra doldur (bkz. fillCard'daki açıklama).
         hideMenu()
+        handler.postDelayed({ fillSignup(name, password) }, FILL_DELAY_MS)
+    }
+
+    private fun fillSignup(name: String, password: String) {
         val root = rootInActiveWindow ?: firstAppRoot()
         if (root == null) {
             copyToClipboard(name)
@@ -851,7 +869,13 @@ class KartAccessibilityService : AccessibilityService() {
      * olmazsa panoya kopyalar ve 60 saniye sonra panoyu temizler.
      */
     private fun deliver(value: String, label: String) {
+        // Menü kapandıktan kısa süre sonra yaz (bkz. fillCard'daki açıklama) — Şehir/İlçe/Mahalle,
+        // ASIN ve e-posta kutularının ilk dokunuşta yazmama sorununu giderir.
         hideMenu()
+        handler.postDelayed({ doDeliver(value, label) }, FILL_DELAY_MS)
+    }
+
+    private fun doDeliver(value: String, label: String) {
         if (fillFocusedField(value)) {
             toast("$label alana yazıldı")
         } else {
@@ -924,6 +948,8 @@ class KartAccessibilityService : AccessibilityService() {
         private const val SWIPE_DISTANCE_DP = 40
         private const val MENU_WIDTH_DP = 300
         private const val CLIPBOARD_CLEAR_MS = 60_000L
+        // Menü kapandıktan sonra doldurmadan önce beklenen kısa süre; pencere/odak otursun diye.
+        private const val FILL_DELAY_MS = 150L
 
         // Etiket anahtar kelimeleri (normalize edilmiş: küçük harf, Türkçe aksanlar sadeleştirilmiş).
         // Madde 8: hem Türkçe hem İngilizce alan isimleri tanınır.
