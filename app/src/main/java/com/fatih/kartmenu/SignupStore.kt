@@ -56,16 +56,37 @@ class SignupStore(context: Context) {
     }
 
     /**
-     * Sıradaki e-postayı döndürür ve sırayı bir ilerletir (sona gelince başa döner).
+     * ŞU ANKİ e-postayı döndürür ama sırayı İLERLETMEZ. Menüde "aynısını yapıştır"
+     * bunu kullanır: yapıştırma başarısız olup tekrar denense bile mail kaçmaz.
      * E-posta yoksa boş döner.
      */
-    fun nextEmail(): String = synchronized(LOCK) {
+    fun currentEmail(): String = synchronized(LOCK) {
         val emails = getData().emails.filter { it.isNotBlank() }
         if (emails.isEmpty()) return ""
-        val idx = ((prefs.getInt(KEY_EMAIL_INDEX, 0) % emails.size) + emails.size) % emails.size
-        prefs.edit().putInt(KEY_EMAIL_INDEX, (idx + 1) % emails.size).apply()
-        return emails[idx]
+        return emails[normIndex(emails.size)]
     }
+
+    /**
+     * Sırayı bir sonrakine ilerletir (sona gelince başa döner) ve YENİ şu anki e-postayı
+     * döndürür. Menüde "sonraki e-postaya geç" bunu kullanır. E-posta yoksa boş döner.
+     */
+    fun advanceEmail(): String = synchronized(LOCK) {
+        val emails = getData().emails.filter { it.isNotBlank() }
+        if (emails.isEmpty()) return ""
+        val next = (normIndex(emails.size) + 1) % emails.size
+        prefs.edit().putInt(KEY_EMAIL_INDEX, next).apply()
+        return emails[next]
+    }
+
+    /** Şu anki e-postanın 1 tabanlı sırası ve toplam adet (ör. 3/8). Boşsa 0/0. */
+    fun emailPosition(): Pair<Int, Int> = synchronized(LOCK) {
+        val size = getData().emails.filter { it.isNotBlank() }.size
+        if (size == 0) 0 to 0 else (normIndex(size) + 1) to size
+    }
+
+    /** Kayıtlı sıra numarasını liste boyutuna göre güvenli aralığa indirger. */
+    private fun normIndex(size: Int): Int =
+        ((prefs.getInt(KEY_EMAIL_INDEX, 0) % size) + size) % size
 
     private fun JSONArray?.toList(): List<String> {
         if (this == null) return emptyList()

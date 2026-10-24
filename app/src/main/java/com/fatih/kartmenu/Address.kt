@@ -4,13 +4,13 @@ package com.fatih.kartmenu
  * Kayıtlı bir teslimat adresi: ad soyad, telefon(lar), adres satırı 1/2/3 ve
  * Şehir/İlçe/Mahalle. Şehir/İlçe/Mahalle yüzen menüde mavi kutu (chip) olarak durur:
  * kullanıcı Amazon'daki kutuya dokunur, ilgili chip'e basar, değer gelir, açılan
- * listeden kendisi seçer (otomatik seçme denenmez). Bir adrese 5'e kadar telefon
+ * listeden kendisi seçer (otomatik seçme denenmez). Bir adrese 20'ye kadar telefon
  * eklenebilir; doldururken rastgele biri seçilir.
  */
 data class Address(
     val id: String,
     val fullName: String,        // Ad soyad (opsiyonel)
-    val phones: List<String>,    // 1-5 telefon (opsiyonel); doldururken rastgele biri seçilir
+    val phones: List<String>,    // 1-20 telefon (opsiyonel); doldururken rastgele biri seçilir
     val line1: String,           // Adres satırı 1 (cadde/sokak)
     val line2: String,           // Adres satırı 2 (bina/no)
     val line3: String,           // Adres satırı 3 (daire/dükkan, opsiyonel)

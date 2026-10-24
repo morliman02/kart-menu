@@ -265,8 +265,8 @@ class MainActivity : Activity() {
                     line1.error = "Adres satırı 1 boş olamaz"
                     return@setOnClickListener
                 }
-                // Birden fazla telefon: her satır (veya virgül) bir numara, en fazla 5 tanesi.
-                val phones = splitLines(phone.text.toString()).take(5)
+                // Birden fazla telefon: her satır (veya virgül) bir numara, en fazla 20 tanesi.
+                val phones = splitLines(phone.text.toString()).take(20)
                 val a = Address(
                     id = existing?.id ?: UUID.randomUUID().toString(),
                     fullName = fullName.text.toString().trim(),

@@ -19,7 +19,7 @@
     <string name="add_address">Adres ekle</string>
     <string name="no_addresses">Henüz adres eklemediniz.</string>
     <string name="addr_full_name">Ad soyad (opsiyonel)</string>
-    <string name="addr_phone">Telefon(lar) — her satıra bir numara, 5\'e kadar (opsiyonel)</string>
+    <string name="addr_phone">Telefon(lar) — her satıra bir numara, 20\'ye kadar (opsiyonel)</string>
     <string name="addr_line1">Adres satırı 1 (cadde/sokak)</string>
     <string name="addr_line2">Adres satırı 2 (bina/no)</string>
     <string name="addr_line3">Adres satırı 3 (daire/dükkan, opsiyonel)</string>

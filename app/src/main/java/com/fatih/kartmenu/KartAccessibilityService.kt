@@ -182,12 +182,28 @@ class KartAccessibilityService : AccessibilityService() {
         // Bölüm başlıkları (Kartlar/Adresler/Üyelik/ASIN) menüyü genişlettiği için
         // KALDIRILDI; her satır zaten kendi başlığını taşıyor. Boş bölümler hiç gösterilmez.
 
-        // ---- E-posta (sıradaki) ----
+        // ---- E-posta: "şu anki"yi yapıştır + "sonrakine geç" AYRI iki satır ----
+        // Eskiden tek dokunuş hem yapıştırıp hem ilerletiyordu; yapıştırma başarısız olunca
+        // (ör. hata) mail kaçıyordu. Artık: üstteki satır ŞU ANKİ maili yapıştırır (ilerletmez,
+        // istediğin kadar tekrar basabilirsin); alttaki satır bir SONRAKİ maile geçer.
         if (signup.emails.isNotEmpty()) {
-            val row = menuRow(dark) { deliver(signupStore.nextEmail(), "E-posta") }
-            row.addView(rowTitle("E-posta (sıradaki)", fg))
-            row.addView(rowSub("${signup.emails.size} e-posta · sırayla", sub))
-            list.addView(row, rowParams())
+            val (emailPos, emailTotal) = signupStore.emailPosition()
+            val curEmail = signupStore.currentEmail()
+
+            val pasteRow = menuRow(dark) { deliver(signupStore.currentEmail(), "E-posta") }
+            pasteRow.addView(rowTitle("E-posta (şu anki) — yapıştır", fg))
+            pasteRow.addView(rowSub("$emailPos/$emailTotal · $curEmail", sub))
+            list.addView(pasteRow, rowParams())
+
+            val nextRow = menuRow(dark) {
+                val next = signupStore.advanceEmail()
+                hideMenu()
+                val (pos, total) = signupStore.emailPosition()
+                toast(if (next.isBlank()) "E-posta yok" else "Sıradaki e-posta ($pos/$total): $next")
+            }
+            nextRow.addView(rowTitle("Sonraki e-postaya geç →", fg))
+            nextRow.addView(rowSub("dokununca bir sonraki maile atlar", sub))
+            list.addView(nextRow, rowParams())
         }
 
         // ---- Ad soyad + Parola (TEK dokunuşta birlikte; ad rastgele, parola sabit) ----
