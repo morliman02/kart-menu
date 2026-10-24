@@ -28,7 +28,7 @@
     <string name="addr_mahalle">Mahalle / Köy (menüde mavi kutu)</string>
     <string name="signup_title">Üyelik bilgileri</string>
     <string name="signup_edit">Düzenle</string>
-    <string name="signup_emails">E-posta listesi — her satıra bir e-posta (sırayla kullanılır)</string>
+    <string name="signup_emails">E-posta listesi — her satıra bir e-posta, 50\'ye kadar (sırayla kullanılır)</string>
     <string name="signup_names">Ad soyad listesi — her satıra bir ad soyad (rastgele seçilir)</string>
     <string name="signup_password">Parola (sabit, hep aynısı yazılır)</string>
     <string name="asin_title">ASIN\'ler (ürün kodu)</string>

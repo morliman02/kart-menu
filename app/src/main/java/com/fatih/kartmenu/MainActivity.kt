@@ -320,7 +320,8 @@ class MainActivity : Activity() {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 signupStore.save(
                     SignupData(
-                        emails = splitLines(emails.text.toString()),
+                        // E-posta: her satır (veya virgül) bir adres, en fazla 50 tanesi.
+                        emails = splitLines(emails.text.toString()).take(50),
                         names = splitLines(names.text.toString()),
                         password = password.text.toString().trim(),
                     )
