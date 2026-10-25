@@ -192,9 +192,15 @@ class KartAccessibilityService : AccessibilityService() {
             if (signup.emails.size > 1) {
                 val nextLocal = localPart(signupStore.peekNextEmail())
                 val nextRow = menuRow(dark) {
+                    // Sonrakine GEÇ ve o maili DOĞRUDAN yapıştır (eskiden sadece geçiyordu,
+                    // yapıştırmak için menüyü tekrar açmak gerekiyordu).
                     val next = signupStore.advanceEmail()
-                    hideMenu()
-                    toast(if (next.isBlank()) "E-posta yok" else "Şu anki mail: ${localPart(next)}")
+                    if (next.isBlank()) {
+                        hideMenu()
+                        toast("E-posta yok")
+                    } else {
+                        deliver(next, "E-posta")
+                    }
                 }
                 nextRow.addView(rowTitle("Sonraki mail - $nextLocal", fg, EMAIL_ROW_SP))
                 list.addView(nextRow, rowParams())
