@@ -156,22 +156,17 @@ class KartAccessibilityService : AccessibilityService() {
             elevation = dp(8).toFloat()
         }
 
-        // Başlık + kapat
+        // "Kart Menüsü" başlığı KALDIRILDI (yer kaplıyordu). Sadece sağ üstte küçük bir kapat (✕)
+        // kalır; menü ayrıca dışına dokununca da kapanır.
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+            gravity = Gravity.END or Gravity.CENTER_VERTICAL
         }
-        header.addView(TextView(this).apply {
-            text = "Kart Menüsü"
-            setTextColor(fg)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
-            typeface = Typeface.DEFAULT_BOLD
-        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         header.addView(TextView(this).apply {
             text = "✕"
             setTextColor(sub)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
-            setPadding(dp(12), dp(4), dp(4), dp(4))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            setPadding(dp(10), dp(0), dp(2), dp(0))
             setOnClickListener { hideMenu() }
         })
         root.addView(header)
@@ -187,9 +182,10 @@ class KartAccessibilityService : AccessibilityService() {
         // alt satır bir SONRAKİ maile geçer. Hepsi @gmail.com olduğu için sadece baş kısım
         // gösterilir (ör. "baykefatamzn42").
         if (signup.emails.isNotEmpty()) {
+            // Yazı %25 küçük (16→12sp) ve tek satır; kısa etiketler ("Şu anki mail - isim").
             val curLocal = localPart(signupStore.currentEmail())
             val pasteRow = menuRow(dark) { deliver(signupStore.currentEmail(), "E-posta") }
-            pasteRow.addView(rowTitle("E-posta (şu anki) - $curLocal", fg))
+            pasteRow.addView(rowTitle("Şu anki mail - $curLocal", fg, EMAIL_ROW_SP))
             list.addView(pasteRow, rowParams())
 
             // Birden fazla mail varsa "sonraki"yi göster (tek mail varsa gereksiz).
@@ -198,9 +194,9 @@ class KartAccessibilityService : AccessibilityService() {
                 val nextRow = menuRow(dark) {
                     val next = signupStore.advanceEmail()
                     hideMenu()
-                    toast(if (next.isBlank()) "E-posta yok" else "Şu anki e-posta: ${localPart(next)}")
+                    toast(if (next.isBlank()) "E-posta yok" else "Şu anki mail: ${localPart(next)}")
                 }
-                nextRow.addView(rowTitle("Sonraki e-posta - $nextLocal", fg))
+                nextRow.addView(rowTitle("Sonraki mail - $nextLocal", fg, EMAIL_ROW_SP))
                 list.addView(nextRow, rowParams())
             }
         }
@@ -351,12 +347,15 @@ class KartAccessibilityService : AccessibilityService() {
             setPadding(0, dp(2), 0, dp(4))
         }
 
-    private fun rowTitle(text: String, color: Int): TextView =
+    private fun rowTitle(text: String, color: Int, sizeSp: Float = 16f): TextView =
         TextView(this).apply {
             this.text = text
             setTextColor(color)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp)
             typeface = Typeface.DEFAULT_BOLD
+            // Tek satır kalsın, taşarsa ... ile kısalsın (sarıp menüyü uzatmasın).
+            isSingleLine = true
+            ellipsize = android.text.TextUtils.TruncateAt.END
         }
 
     private fun rowSub(text: String, color: Int): TextView =
@@ -963,6 +962,8 @@ class KartAccessibilityService : AccessibilityService() {
         private const val CLIPBOARD_CLEAR_MS = 60_000L
         // Menü kapandıktan sonra doldurmadan önce beklenen kısa süre; pencere/odak otursun diye.
         private const val FILL_DELAY_MS = 150L
+        // E-posta satırlarının yazı boyutu (normal 16sp'nin %25 küçüğü = 12sp).
+        private const val EMAIL_ROW_SP = 12f
 
         // Etiket anahtar kelimeleri (normalize edilmiş: küçük harf, Türkçe aksanlar sadeleştirilmiş).
         // Madde 8: hem Türkçe hem İngilizce alan isimleri tanınır.
