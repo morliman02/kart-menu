@@ -148,7 +148,7 @@ class KartAccessibilityService : AccessibilityService() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(12), dp(16), dp(12))
+            setPadding(dp(14), dp(10), dp(14), dp(10))
             background = GradientDrawable().apply {
                 setColor(bg)
                 cornerRadius = dp(16).toFloat()
@@ -182,40 +182,34 @@ class KartAccessibilityService : AccessibilityService() {
         // Bölüm başlıkları (Kartlar/Adresler/Üyelik/ASIN) menüyü genişlettiği için
         // KALDIRILDI; her satır zaten kendi başlığını taşıyor. Boş bölümler hiç gösterilmez.
 
-        // ---- E-posta: "şu anki"yi yapıştır + "sonrakine geç" AYRI iki satır ----
-        // Eskiden tek dokunuş hem yapıştırıp hem ilerletiyordu; yapıştırma başarısız olunca
-        // (ör. hata) mail kaçıyordu. Artık: üstteki satır ŞU ANKİ maili yapıştırır (ilerletmez,
-        // istediğin kadar tekrar basabilirsin); alttaki satır bir SONRAKİ maile geçer.
+        // ---- E-posta: TEK satır, sadece @ öncesi isim (menü dar olsun) ----
+        // Üst satır ŞU ANKİ maili yapıştırır (ilerletmez; hata olursa tekrar basılabilir),
+        // alt satır bir SONRAKİ maile geçer. Hepsi @gmail.com olduğu için sadece baş kısım
+        // gösterilir (ör. "baykefatamzn42").
         if (signup.emails.isNotEmpty()) {
-            val (emailPos, emailTotal) = signupStore.emailPosition()
-            val curEmail = signupStore.currentEmail()
-
+            val curLocal = localPart(signupStore.currentEmail())
             val pasteRow = menuRow(dark) { deliver(signupStore.currentEmail(), "E-posta") }
-            pasteRow.addView(rowTitle("E-posta (şu anki) — yapıştır", fg))
-            pasteRow.addView(rowSub("$emailPos/$emailTotal · $curEmail", sub))
+            pasteRow.addView(rowTitle("E-posta (şu anki) - $curLocal", fg))
             list.addView(pasteRow, rowParams())
 
-            val nextRow = menuRow(dark) {
-                val next = signupStore.advanceEmail()
-                hideMenu()
-                val (pos, total) = signupStore.emailPosition()
-                toast(if (next.isBlank()) "E-posta yok" else "Sıradaki e-posta ($pos/$total): $next")
+            // Birden fazla mail varsa "sonraki"yi göster (tek mail varsa gereksiz).
+            if (signup.emails.size > 1) {
+                val nextLocal = localPart(signupStore.peekNextEmail())
+                val nextRow = menuRow(dark) {
+                    val next = signupStore.advanceEmail()
+                    hideMenu()
+                    toast(if (next.isBlank()) "E-posta yok" else "Şu anki e-posta: ${localPart(next)}")
+                }
+                nextRow.addView(rowTitle("Sonraki e-posta - $nextLocal", fg))
+                list.addView(nextRow, rowParams())
             }
-            nextRow.addView(rowTitle("Sonraki e-postaya geç →", fg))
-            nextRow.addView(rowSub("dokununca bir sonraki maile atlar", sub))
-            list.addView(nextRow, rowParams())
         }
 
         // ---- Ad soyad + Parola (TEK dokunuşta birlikte; ad rastgele, parola sabit) ----
         if (signup.names.isNotEmpty() || signup.password.isNotBlank()) {
+            // Tek satır (menü dar olsun): alt bilgi satırı ("ad rastgele · parola sabit") kaldırıldı.
             val row = menuRow(dark) { signupFillAccount(signup.randomName(), signup.password) }
             row.addView(rowTitle("Ad soyad + Parola", fg))
-            val sb = buildString {
-                if (signup.names.isNotEmpty()) append("ad rastgele")
-                if (signup.names.isNotEmpty() && signup.password.isNotBlank()) append(" · ")
-                if (signup.password.isNotBlank()) append("parola sabit")
-            }
-            row.addView(rowSub(sb, sub))
             list.addView(row, rowParams())
         }
 
@@ -375,7 +369,7 @@ class KartAccessibilityService : AccessibilityService() {
     private fun menuRow(dark: Boolean, onClick: () -> Unit): LinearLayout =
         LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(12), dp(10), dp(12), dp(10))
+            setPadding(dp(12), dp(7), dp(12), dp(7))
             background = GradientDrawable().apply {
                 setColor(if (dark) Color.rgb(0x2E, 0x31, 0x36) else Color.rgb(0xF1, 0xF4, 0xF9))
                 cornerRadius = dp(12).toFloat()
@@ -387,7 +381,7 @@ class KartAccessibilityService : AccessibilityService() {
     private fun rowParams(): LinearLayout.LayoutParams =
         LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply { topMargin = dp(8) }
+        ).apply { topMargin = dp(6) }
 
     private fun chip(label: String, color: Int, onClick: () -> Unit): TextView =
         TextView(this).apply {
@@ -953,6 +947,9 @@ class KartAccessibilityService : AccessibilityService() {
     }
 
     // ---------------------------------------------------------------- yardımcılar
+
+    /** E-postanın @ öncesi kısmı (ör. "baykefatih01@gmail.com" → "baykefatih01"). */
+    private fun localPart(email: String): String = email.substringBefore("@").ifBlank { email }
 
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
 

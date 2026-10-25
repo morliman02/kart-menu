@@ -78,6 +78,13 @@ class SignupStore(context: Context) {
         return emails[next]
     }
 
+    /** Bir SONRAKİ e-postayı İLERLETMEDEN döndürür (menüde "sonraki" satırında göstermek için). */
+    fun peekNextEmail(): String = synchronized(LOCK) {
+        val emails = getData().emails.filter { it.isNotBlank() }
+        if (emails.isEmpty()) return ""
+        return emails[(normIndex(emails.size) + 1) % emails.size]
+    }
+
     /** Şu anki e-postanın 1 tabanlı sırası ve toplam adet (ör. 3/8). Boşsa 0/0. */
     fun emailPosition(): Pair<Int, Int> = synchronized(LOCK) {
         val size = getData().emails.filter { it.isNotBlank() }.size
