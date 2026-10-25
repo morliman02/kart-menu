@@ -433,14 +433,20 @@ class KartAccessibilityService : AccessibilityService() {
         handler.postDelayed({ fillCard(card) }, FILL_DELAY_MS)
     }
 
-    private fun fillCard(card: Card) {
+    private fun fillCard(card: Card, attempt: Int = 0) {
         val root = rootInActiveWindow ?: firstAppRoot()
+        val fields = if (root != null) collectFields(root) else emptyList()
+        // Menü kapandıktan sonra ekran/ağaç geç hazırlanabiliyor; hiç düzenlenebilir kutu
+        // görünmüyorsa birkaç kez bekleyip tekrar dene ("ilk dokunuşta yapışmıyor"a karşı).
+        if (fields.isEmpty() && attempt < 3) {
+            handler.postDelayed({ fillCard(card, attempt + 1) }, 200)
+            return
+        }
         if (root == null) {
             copyToClipboard(card.number)
             toast("Ekran okunamadı; kart numarası panoya kopyalandı (60 sn)")
             return
         }
-        val fields = collectFields(root)
         // Daha özel olan "son kullanma" numaradan önce gelsin ("kart" kelimesi ikisinde de geçebilir).
         val targets = listOfNotNull(
             FillTarget(EXPIRY_KEYS, card.expiry),
@@ -463,14 +469,21 @@ class KartAccessibilityService : AccessibilityService() {
         handler.postDelayed({ fillAddress(address) }, FILL_DELAY_MS)
     }
 
-    private fun fillAddress(address: Address) {
+    private fun fillAddress(address: Address, attempt: Int = 0) {
         val root = rootInActiveWindow ?: firstAppRoot()
+        val fields = if (root != null) collectFields(root) else emptyList()
+        // Menü kapandıktan sonra ekran/ağaç geç hazırlanabiliyor (özellikle Amazon'un karışık
+        // adres formunda); hiç düzenlenebilir kutu görünmüyorsa birkaç kez bekleyip tekrar dene.
+        // "İlk dokunuşta yapıştırmıyor, ikincide yapıştırıyor" sorununa karşı.
+        if (fields.isEmpty() && attempt < 3) {
+            handler.postDelayed({ fillAddress(address, attempt + 1) }, 200)
+            return
+        }
         if (root == null) {
             copyToClipboard(address.line1)
             toast("Ekran okunamadı; adres panoya kopyalandı (60 sn)")
             return
         }
-        val fields = collectFields(root)
 
         // Sadece ad soyad, telefon ve adres satırı 1/2/3 doldurulur. Şehir/İlçe/Mahalle Amazon'da
         // birbirine bağlı önerilerle seçildiği (ve otomatiği sorun çıkardığı) için kullanıcı elle girer.
@@ -968,8 +981,8 @@ class KartAccessibilityService : AccessibilityService() {
         private const val CLIPBOARD_CLEAR_MS = 60_000L
         // Menü kapandıktan sonra doldurmadan önce beklenen kısa süre; pencere/odak otursun diye.
         private const val FILL_DELAY_MS = 150L
-        // E-posta satırlarının yazı boyutu (normal 16sp'nin %25 küçüğü = 12sp).
-        private const val EMAIL_ROW_SP = 12f
+        // E-posta satırlarının yazı boyutu. Önce 12sp'ydi; fatih %10 büyütmek istedi → ~13.2sp.
+        private const val EMAIL_ROW_SP = 13.2f
 
         // Etiket anahtar kelimeleri (normalize edilmiş: küçük harf, Türkçe aksanlar sadeleştirilmiş).
         // Madde 8: hem Türkçe hem İngilizce alan isimleri tanınır.

@@ -11,8 +11,8 @@ android {
         applicationId = "com.fatih.kartmenu"
         minSdk = 26
         targetSdk = 34
-        versionCode = 27
-        versionName = "3.6"
+        versionCode = 28
+        versionName = "3.7"
     }
 
     // Sabit (depoda tutulan) debug anahtarı: her derlemede aynı imza oluşur, böylece
