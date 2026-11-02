@@ -215,6 +215,13 @@ class KartAccessibilityService : AccessibilityService() {
             list.addView(row, rowParams())
         }
 
+        // ---- Sadece parola (seçili alana yalnızca sabit parolayı yazar) ----
+        if (signup.password.isNotBlank()) {
+            val row = menuRow(dark) { deliver(signup.password, "Parola") }
+            row.addView(rowTitle("Sadece parola - yapıştır", fg))
+            list.addView(row, rowParams())
+        }
+
         // ---- Adresler ----
         addresses.forEachIndexed { index, address ->
             val row = menuRow(dark) { autoFill(address) }
