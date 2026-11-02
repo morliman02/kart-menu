@@ -259,7 +259,15 @@ class KartAccessibilityService : AccessibilityService() {
                 val rowLayout = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
                 group.forEachIndexed { j, card ->
                     val number = rowIndex * CARD_PER_ROW + j + 1
-                    rowLayout.addView(chip("Kart $number", brand) { autoFill(card) })
+                    // Kutular satırı eşit paylaşsın (weight=1) ki 6 tanesi yan yana sığsın.
+                    val c = chip("Kart $number", brand) { autoFill(card) }
+                    c.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+                    c.gravity = Gravity.CENTER
+                    c.isSingleLine = true
+                    c.setPadding(dp(2), dp(4), dp(2), dp(4))
+                    c.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                        .apply { marginEnd = dp(3); topMargin = dp(3) }
+                    rowLayout.addView(c)
                 }
                 list.addView(rowLayout, rowParams())
             }
@@ -979,7 +987,7 @@ class KartAccessibilityService : AccessibilityService() {
         private const val SWIPE_DISTANCE_DP = 40
         private const val MENU_WIDTH_DP = 320
         // Kart ve ASIN kutuları yan yana dizilir; satıra sığmayan alt satıra geçer.
-        private const val CARD_PER_ROW = 3
+        private const val CARD_PER_ROW = 6
         private const val ASIN_PER_ROW = 5
         private const val CLIPBOARD_CLEAR_MS = 60_000L
         // Menü kapandıktan sonra doldurmadan önce beklenen kısa süre; pencere/odak otursun diye.
