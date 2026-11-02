@@ -252,39 +252,32 @@ class KartAccessibilityService : AccessibilityService() {
         // ---- Kartlar ----
         // Sade ve dar: her kart yan yana "Kart 1", "Kart 2"… mavi kutu. Numara/SKT/İsim
         // ayrı kutuları kaldırıldı; kutuya dokununca o kartın tüm bilgileri (numara,
-        // SKT, isim) ekrandaki ilgili alanlara otomatik yazılır. Yan yana sığmazsa
-        // yatay kaydırılır.
+        // SKT, isim) ekrandaki ilgili alanlara otomatik yazılır. Satırda en fazla
+        // CARD_PER_ROW kutu; sığmayanlar hemen ALT satıra geçer (yatay kaydırma yok).
         if (cards.isNotEmpty()) {
-            val cardStrip = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            cards.forEachIndexed { index, card ->
-                cardStrip.addView(chip("Kart ${index + 1}", brand) { autoFill(card) })
+            cards.chunked(CARD_PER_ROW).forEachIndexed { rowIndex, group ->
+                val rowLayout = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                group.forEachIndexed { j, card ->
+                    val number = rowIndex * CARD_PER_ROW + j + 1
+                    rowLayout.addView(chip("Kart $number", brand) { autoFill(card) })
+                }
+                list.addView(rowLayout, rowParams())
             }
-            list.addView(
-                android.widget.HorizontalScrollView(this).apply {
-                    isHorizontalScrollBarEnabled = false
-                    addView(cardStrip)
-                },
-                rowParams()
-            )
         }
 
         // ---- ASIN'ler ----
-        // Kartlar gibi sade ve soldan başlayan yan yana strip: amz1, amz2, … mavi kutu.
-        // Basınca o ASIN, seçili alana (genelde Amazon arama kutusu) yazılır; alan yoksa
-        // panoya kopyalanır. Sığmazsa yatay kaydırılır.
+        // amz1, amz2, … mavi kutular. Her satırda en fazla 5 kutu; kalanlar (ör. amz6..amz10)
+        // hemen ALT satıra geçer (yatay kaydırma yok). Basınca o ASIN seçili alana
+        // (genelde Amazon arama kutusu) yazılır; alan yoksa panoya kopyalanır.
         if (asins.isNotEmpty()) {
-            val asinStrip = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            asins.forEachIndexed { i, asin ->
-                val label = "amz${i + 1}"
-                asinStrip.addView(chip(label, brand) { deliver(asin, label) })
+            asins.chunked(ASIN_PER_ROW).forEachIndexed { rowIndex, group ->
+                val rowLayout = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                group.forEachIndexed { j, asin ->
+                    val label = "amz${rowIndex * ASIN_PER_ROW + j + 1}"
+                    rowLayout.addView(chip(label, brand) { deliver(asin, label) })
+                }
+                list.addView(rowLayout, rowParams())
             }
-            list.addView(
-                android.widget.HorizontalScrollView(this).apply {
-                    isHorizontalScrollBarEnabled = false
-                    addView(asinStrip)
-                },
-                rowParams()
-            )
         }
 
         // Ekle / düzenle için uygulamayı aç.
@@ -401,14 +394,14 @@ class KartAccessibilityService : AccessibilityService() {
             setTextColor(color)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             typeface = Typeface.DEFAULT_BOLD
-            setPadding(dp(8), dp(4), dp(8), dp(4))
+            setPadding(dp(6), dp(4), dp(6), dp(4))
             background = GradientDrawable().apply {
                 setStroke(dp(1), color)
                 cornerRadius = dp(12).toFloat()
             }
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { marginEnd = dp(4) }
+            ).apply { marginEnd = dp(3); topMargin = dp(3) }
             setOnClickListener { onClick() }
         }
 
@@ -984,7 +977,10 @@ class KartAccessibilityService : AccessibilityService() {
         private const val EDGE_WIDTH_DP = 14
         private const val EDGE_HEIGHT_DP = 160
         private const val SWIPE_DISTANCE_DP = 40
-        private const val MENU_WIDTH_DP = 300
+        private const val MENU_WIDTH_DP = 320
+        // Kart ve ASIN kutuları yan yana dizilir; satıra sığmayan alt satıra geçer.
+        private const val CARD_PER_ROW = 3
+        private const val ASIN_PER_ROW = 5
         private const val CLIPBOARD_CLEAR_MS = 60_000L
         // Menü kapandıktan sonra doldurmadan önce beklenen kısa süre; pencere/odak otursun diye.
         private const val FILL_DELAY_MS = 150L
