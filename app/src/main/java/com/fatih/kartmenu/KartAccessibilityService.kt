@@ -218,7 +218,7 @@ class KartAccessibilityService : AccessibilityService() {
         // ---- Sadece parola (seçili alana yalnızca sabit parolayı yazar) ----
         if (signup.password.isNotBlank()) {
             val row = menuRow(dark) { deliver(signup.password, "Parola") }
-            row.addView(rowTitle("Sadece parola - yapıştır", fg))
+            row.addView(rowTitle("Sadece parola - yapıştır", fg, 12f)) // %25 küçük (16→12)
             list.addView(row, rowParams())
         }
 
@@ -259,15 +259,8 @@ class KartAccessibilityService : AccessibilityService() {
                 val rowLayout = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
                 group.forEachIndexed { j, card ->
                     val number = rowIndex * CARD_PER_ROW + j + 1
-                    // Kutular satırı eşit paylaşsın (weight=1) ki 6 tanesi yan yana sığsın.
-                    val c = chip("Kart $number", brand) { autoFill(card) }
-                    c.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-                    c.gravity = Gravity.CENTER
-                    c.isSingleLine = true
-                    c.setPadding(dp(2), dp(4), dp(2), dp(4))
-                    c.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                        .apply { marginEnd = dp(3); topMargin = dp(3) }
-                    rowLayout.addView(c)
+                    // Kutu yazıya göre dar olsun (amz kutuları gibi): "kart1", "kart2"…
+                    rowLayout.addView(chip("kart$number", brand) { autoFill(card) })
                 }
                 list.addView(rowLayout, rowParams())
             }
